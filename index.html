@@ -260,7 +260,7 @@ body::before { content: ""; position: fixed; top: 0; left: 0; right: 0; height: 
 /* Bordi dello schermo del telefono. Tre cose: allunga la pagina se il telefono la tiene più corta dello schermo; sposta il gioco in basso
    se finisce sotto l'orologio senza che il telefono lo dichiari; lascia al giocatore una regolazione a mano (Altro, Guida, Schermo). */
 (function () {
-  var VERSION = 'v6', KEY = 'alta-pressione-schermo', nav = window.navigator;
+  var VERSION = 'v7', KEY = 'alta-pressione-schermo', nav = window.navigator;
   var sa = !!(nav.standalone || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches));
   var ios = /iPhone|iPad|iPod/.test(nav.userAgent) || (nav.platform === 'MacIntel' && nav.maxTouchPoints > 1);
   function mk(side) { var d = document.createElement('div'); d.style.cssText = 'position:fixed;top:0;left:0;width:0;height:env(safe-area-inset-' + side + ',0px);visibility:hidden;pointer-events:none'; document.documentElement.appendChild(d); return d; }
@@ -612,7 +612,7 @@ function trail(S, key) { const h = S.hist, n = Math.min(12, h.length); if (n < 3
 function metrics(S) {
   const P = S.player, debt = debtOf(S), props = propsValue(S), book = bookOf(S) + props, ar = arOf(S), e12 = trail(S, 'ebitda');
   // gli immobili tuoi si contano a parte, al valore di mercato: per non contarli due volte si toglie dall'EBITDA l'affitto che non paghi
-  const ev = Math.max(EV_MULT * (e12 - trail(S, 'nr')), 0.5 * bookOf(S));
+  const ev = Math.max(EV_MULT * (e12 - trail(S, 'nr')), 0.5 * bookOf(S), 0.35 * trail(S, 'rev'));
   const value = Math.max(0, ev + props + P.cash - debt - P.adv.bal);
   const equity = book + ar + P.cash - debt - P.AP - P.adv.bal;
   const assets = book + ar + Math.max(0, P.cash);
@@ -623,7 +623,7 @@ function metrics(S) {
   if (P.execs.cfo) rating += 10;
   if (P.cash < 0) rating -= 15;
   rating = clamp(Math.round(rating), 5, 95);
-  const limit = 15000 + 250 * rating + 0.03 * Math.max(0, e12) + (P.execs.cfo ? 10000 : 0);
+  const limit = 20000 + 250 * rating + 0.05 * trail(S, 'rev') + 0.03 * Math.max(0, e12) + (P.execs.cfo ? 10000 : 0);
   const advLimit = Math.round(ar * clamp(0.45 + rating / 200, 0.45, 0.85));
   return { debt, book, props, ar, e12, ev, value, mine: value * P.own, equity, rating, limit, dscr, advLimit, mg: mgmt(S) };
 }
@@ -640,7 +640,7 @@ function bankQuote(S, bankId) {
 function setPrice(S, g, idx) { if (!GMAP[g] || !isFinite(+idx)) return no('Valore non valido.'); S.player.price[g] = clamp(r2(+idx), 0.7, 1.5); return ok(); }
 function setFee(S, v) { if (!isFinite(+v)) return no('Valore non valido.'); S.player.fee = clamp(Math.round(+v * 2) / 2, 2, 10); return ok(); }
 function setIdx(S, kind, v) { if (!isFinite(+v)) return no('Valore non valido.'); S.player[kind === 'pack' ? 'packIdx' : 'testIdx'] = clamp(r2(+v), 0.7, 1.5); return ok(); }
-function setFlag(S, k, v) { if (!['smallOk', 'ownTestOut', 'outsource'].includes(k)) return no('Opzione sconosciuta.'); S.player[k] = !!v; return ok(); }
+function setFlag(S, k, v) { if (!['smallOk', 'ownTestOut', 'outsource', 'autoCyl', 'autoTrucks'].includes(k)) return no('Opzione sconosciuta.'); S.player[k] = !!v; return ok(); }
 function setReps(S, z, n) {
   const P = S.player; if (!ZMAP[z] || !isFinite(+n)) return no('Zona non valida.');
   n = clamp(Math.round(+n), 0, 6); const cur = P.reps[z] || 0;
@@ -903,6 +903,10 @@ function simulate(S) {
   const ev = (kind, txt) => { addLog(S, kind, txt); res.events.push(txt); };
   const cash0 = P.cash, mg = mgmt(S), over = mg.over;
 
+  // 0. automatismi: se li hai accesi, bombole e camion si sistemano da soli
+  if (P.autoCyl || P.autoTrucks) { const p0 = distPlan(S);
+    if (P.autoCyl) { const short = p0.outNeed - p0.fleetAvail + (P.waitCyl || 0); if (short > 0) { const n = Math.ceil(short / 10) * 10, c = n * CYL_USED * I * S.macro.steel; if (P.cash - c > 15000 && buyCyl(S, n, true).ok) ev('info', 'Automatico: comprate ' + fmtN(n) + ' bombole usate per ' + fmtE(c) + '.'); else ev('warn', 'Automatico: servirebbero ' + fmtN(n) + ' bombole (' + fmtE(c) + ') ma la cassa non basta.'); } }
+    if (P.autoTrucks) p0.deps.forEach(d => { const dep = P.depots.find(x => x.id === d.id), need = Math.max(1, Math.ceil(d.load - 0.05)); if (need > dep.trucks) { dep.trucks = Math.min(12, need); ev('info', 'Automatico: un camion in più a ' + ZMAP[d.zone].name + '.'); } else if (need < dep.trucks - 1) { setTrucks(S, d.id, dep.trucks - 1); ev('info', 'Automatico: un camion in meno a ' + ZMAP[d.zone].name + '.'); } }); }
   // 1. distribuzione gas
   const pl = distPlan(S);
   const revGas = pl.rev.off + pl.rev.ali + pl.rev.san + pl.rev.lab, revRent = pl.rental;
@@ -910,13 +914,14 @@ function simulate(S) {
   const arAdd = { off: 0, ali: 0, san: 0, lab: 0, srv: 0 };
   SEGS.forEach(s => { const d = sum(pl.rows.filter(r => r.s === s.id), r => r.del); arAdd[s.id] = pl.rev[s.id] + revRent * d * s.rot / (pl.outAct || 1); });
   // servizio e quote
-  ZONES.forEach(z => { const w = pl.zw[z.id] || 0, sl = w > 0 ? (pl.zd[z.id] || 0) / w : 1; P.sl[z.id] = clamp(0.6 * P.sl[z.id] + 0.4 * (sl - 0.5 * over * 0.1), 0.3, 1); });
+  ZONES.forEach(z => { const w = pl.zw[z.id] || 0, ff = Math.max(0.05, pl.fFleet), sl = w > 0 ? Math.min(1, (pl.zd[z.id] || 0) / w / ff) * (1 - 0.25 * (1 - pl.fFleet)) : 1; P.sl[z.id] = clamp(0.6 * P.sl[z.id] + 0.4 * (sl - 0.5 * over * 0.1), 0.3, 1); });
   if (pl.fFleet < 0.97) ev('warn', 'Ti mancano bombole: hai potuto consegnare solo il ' + Math.round(pl.fFleet * 100) + '% di quello che i clienti chiedevano.');
   pl.deps.forEach(d => { if (d.f < 0.97) ev('warn', 'Deposito di ' + ZMAP[d.zone].name + ': camion insufficienti, consegnato solo il ' + Math.round(d.f * 100) + '%.'); });
   for (const z of ZONES) for (const s of SEGS) {
     const cur = P.share[z.id][s.id];
     P.share[z.id][s.id] = clamp(shareStep(cur, shareParts(S, z.id, s.id), s.stick) - (P.sl[z.id] < 0.85 ? 0.03 * cur : 0), 0, 0.95);
   }
+  P.waitCyl = 0;
   // i concorrenti rispondono dove gli porti via clienti
   for (const c of COMPS) for (const z of ZONES) {
     const mine = sum(SEGS, s => P.share[z.id][s.id] * (c.seg[s.id] > 0 ? 1 : 0)) / SEGS.length, A = S.comps[c.id].adj;
@@ -1051,7 +1056,10 @@ function simulate(S) {
   res.rec = rec;
   if (S.t % 12 === 11) { const y = Object.assign({ year: START_YEAR + Math.floor(S.t / 12), cashEnd: P.cash, debtEnd: m2.debt, value: m2.value }, F); y.rev = y.revGas + y.revRent + y.revTest + y.revPack; y.net = y.ebitda - y.dep - y.interest - y.oneoff - y.tax; S.years.push(y); S.fy = newFy(); }
   // 7. fallimento
-  if (P.cash < -m2.limit) { P.warn++; if (P.warn === 1) ev('bad', 'ATTENZIONE: la banca ha tagliato lo scoperto. Hai un mese per rientrare sopra −' + fmtE(m2.limit) + ', altrimenti è fallimento.'); else { S.over = { type: 'fallimento', t: S.t, value: m2.value }; ev('bad', 'Le banche richiamano i crediti. L\'azienda fallisce.'); } } else P.warn = 0;
+  if (P.cash < -m2.limit) { P.warn++;
+    if (P.warn === 1) { if (!P.adv.on) { P.adv.on = true; P.adv.pct = Math.max(P.adv.pct, 0.7); } ev('bad', 'ATTENZIONE: sei oltre il fido (' + fmtE(m2.limit) + '). La banca ti impone l\'anticipo fatture e ti dà due mesi per rientrare.'); }
+    else if (P.warn === 2) ev('bad', 'ULTIMO AVVISO: sei ancora oltre il fido. Se il mese prossimo non rientri, la banca chiude i conti.');
+    else { S.over = { type: 'fallimento', t: S.t, value: m2.value }; ev('bad', 'Le banche richiamano i crediti. L\'azienda fallisce.'); } } else P.warn = 0;
   res.over = S.over;
   return res;
 }
@@ -1185,14 +1193,16 @@ const go2 = (label, scr, tab) => ({ l: label, scr: scr, tab: tab });
 function advisories() {
   const P = S.player, m = E.metrics(S), o = E.outlook(S), pl = o.plan, out = [], I = S.macro.infl;
   const advMax = Math.min(m.advLimit, m.ar * 0.6), fixCash = !P.adv.on && advMax > 5000 ? { l: 'Attiva l\'anticipo fatture · circa +' + eur(advMax), act: 'advon' } : go2('Vai a Finanza', 'az', 'fin');
-  if (P.cash < 0) out.push(['bad', 'Sei in scoperto di ' + eur(-P.cash) + '. Il limite della banca è ' + eur(m.limit) + ': se lo superi per due mesi fallisci. I clienti ti devono ' + eur(m.ar) + '.', fixCash]);
+  if (P.cash < 0) out.push(['bad', 'Sei in scoperto di ' + eur(-P.cash) + '. Il limite della banca è ' + eur(m.limit) + ': se resti oltre per tre mesi fallisci. I clienti ti devono ' + eur(m.ar) + '.', fixCash]);
   else if (P.cash < 30000) out.push(['warn', 'Cassa bassa (' + eur(P.cash) + '). I clienti ti devono ' + eur(m.ar) + ': la banca può anticipartene una parte.', fixCash]);
   const gap = pl.outNeed - pl.fleetAvail, late = E.ZONES.filter(z => P.sl[z.id] < 0.9 && (pl.zw[z.id] || 0) > 20), shortT = pl.deps.filter(d => d.load > d.trucks + 0.02);
   if (pl.fFleet < 0.98) { const n = Math.ceil(gap * 1.05 / 10) * 10, c = Math.round(n * E.CYL_USED * I * S.macro.steel);
-    out.push(['bad', 'Ti mancano circa ' + num(gap) + ' bombole: ne hai ' + num(P.fleet.n) + ', i clienti ne tengono impegnate ' + num(pl.outNeed) + '. Questo mese consegni solo il ' + Math.round(pl.fFleet * 100) + '% di quello che chiedono.', P.cash >= c ? { l: 'Compra ' + num(n) + ' bombole usate · ' + eur(c), act: 'buyfix', n: n } : { l: 'Servono circa ' + eur(c) + ': vai a Logistica', scr: 'az', tab: 'log' }]); }
+    out.push(['bad', 'Ti mancano circa ' + num(gap) + ' bombole: ne hai ' + num(P.fleet.n) + ', i clienti ne tengono impegnate ' + num(pl.outNeed) + '. Questo mese consegni solo il ' + Math.round(pl.fFleet * 100) + '% di quello che chiedono: il resto sono vendite perse.', P.cash >= c ? { l: 'Compra ' + num(n) + ' bombole usate · ' + eur(c), act: 'buyfix', n: n } : { l: 'Servono circa ' + eur(c) + ': vai a Logistica', scr: 'az', tab: 'log' }]); }
+  else if ((P.waitCyl || 0) > 25) { const n = Math.ceil(P.waitCyl / 10) * 10, c = Math.round(n * E.CYL_USED * I * S.macro.steel);
+    out.push(['warn', 'Hai clienti nuovi in attesa: ti mancano circa ' + num(P.waitCyl) + ' bombole per servirli. I clienti che hai già sono serviti; quelli nuovi non entrano finché non le compri.', P.cash >= c ? { l: 'Compra ' + num(n) + ' bombole usate · ' + eur(c), act: 'buyfix', n: n } : { l: 'Servono circa ' + eur(c) + ': vai a Logistica', scr: 'az', tab: 'log' }]); }
   else if (pl.fleetAvail > pl.outNeed * 1.4 && pl.fleetAvail - pl.outNeed > 400) out.push(['warn', 'Hai circa ' + num(pl.fleetAvail - pl.outNeed) + ' bombole ferme in deposito: capitale che non lavora.', go2('Vai a Logistica', 'az', 'log')]);
   shortT.forEach(d => out.push([P.outsource ? 'warn' : 'bad', 'Deposito di ' + E.ZMAP[d.zone].name + ': servono ' + d.load.toFixed(1).replace('.', ',') + ' camion, ne hai ' + d.trucks + '.' + (P.outsource ? ' Il resto va con trasportatori esterni, più cari.' : ' Una parte delle consegne salta.'), { l: 'Aggiungi un camion · ' + eur((E.TRUCK_COST + E.SAL.driver) * I) + ' al mese', act: 'truckfix', id: d.id }]));
-  if (late.length) { const worst = Math.min.apply(null, late.map(z => P.sl[z.id])), why = pl.fFleet < 0.98 ? 'perché ti mancano le bombole (vedi sopra)' : shortT.length && !P.outsource ? 'perché ti mancano i camion (vedi sopra)' : 'ma ora stai consegnando tutto: risale da solo nei prossimi mesi';
+  if (late.length) { const worst = Math.min.apply(null, late.map(z => P.sl[z.id])), why = shortT.length && !P.outsource ? 'perché ti mancano i camion (vedi sopra)' : pl.fFleet < 0.9 ? 'perché ti mancano molte bombole (vedi sopra)' : 'ma ora stai consegnando tutto: risale da solo nei prossimi mesi';
     out.push([worst < 0.88 && why.indexOf('risale') < 0 ? 'bad' : 'warn', 'Servizio al ' + Math.round(worst * 100) + '% a ' + late.map(z => z.name.split('-')[0]).join(', ') + ', ' + why + '. Il servizio è la parte di bombole richieste che riesci a consegnare: sotto l\'85% i clienti se ne vanno.']); }
   const tc = o.test; if (tc.queue > tc.cap * 1.3 && tc.queue > 60) out.push(['warn', 'Collaudo intasato: ' + num(tc.queue) + ' bombole in coda, ne fai ' + num(tc.cap) + ' al mese. I clienti aspettano e ti mandano meno lavoro.', go2('Vai al Collaudo', 'off', 'col')]);
   else if (P.wc > 1 && o.testDemand < tc.cap * 0.65) out.push(['warn', 'Collaudo: hai operai per ' + num(tc.cap) + ' bombole al mese ma ne arrivano circa ' + num(o.testDemand) + '. Paghi persone ferme.', go2('Vai al Collaudo', 'off', 'col')]);
@@ -1298,7 +1308,7 @@ function svcWhy(zid, pl) {
   const r = Math.round(d / w * 100); let why;
   if (r >= 98) why = 'Questo mese consegni tutto' + (P.sl[zid] < 0.95 ? ': il servizio risale da solo, un po\' ogni mese.' : '.');
   else if (pl.fFleet < 0.98 && dep && dep.f < 0.98) why = 'Questo mese consegni solo il ' + r + '%: ti mancano bombole e anche camion al deposito di ' + E.ZMAP[dep.zone].name + '.';
-  else if (pl.fFleet < 0.98) why = 'Questo mese consegni solo il ' + r + '%: ti mancano bombole (Azienda, Logistica).';
+  else if (pl.fFleet < 0.98) why = 'Questo mese consegni solo il ' + r + '%: ti mancano bombole (Azienda, Logistica). Perdi quelle vendite; il servizio ne risente poco.';
   else why = 'Questo mese consegni solo il ' + r + '%: mancano camion al deposito di ' + E.ZMAP[nd.dep.zone].name + '.';
   return '<b>Servizio</b> = bombole consegnate su bombole richieste. ' + why;
 }
@@ -1435,6 +1445,7 @@ function tabLog() {
   const deps = P.depots.map(d => { const dd = pl.deps.find(x => x.id === d.id), zs = E.ZONES.filter(z => E.nearestDepot(S, z.id).dep.id === d.id && (pl.zw[z.id] || 0) > 5).map(z => z.name);
     return '<div class="card stack"><div class="row sp"><h3>' + E.ZMAP[d.zone].name + (d.home ? ' · sede' : '') + '</h3><span class="pill ' + (dd.load > d.trucks + 0.02 ? 'bad' : 'good') + '">' + dd.load.toFixed(1).replace('.', ',') + ' camion di lavoro</span></div><p class="small muted">Serve: ' + (zs.join(', ') || 'nessuna zona') + ' · ' + num(dd.vol) + ' bombole al mese</p><div class="ctl"><span class="lbl">Camion</span>' + step('trucks', 'data-id="' + d.id + '"', d.trucks + ' camion') + '</div></div>'; }).join('');
   return '<section>' + fleet + '<div class="row sp"><h2>Depositi e camion</h2></div><p class="muted small">Un camion fa circa 1.300 bombole al mese vicino al deposito, meno di 900 a 80 km. I depositi nuovi si aprono dalla mappa, toccando una zona.</p><div class="grid two">' + deps + '</div>' +
+    '<div class="card stack"><h3>Fai fare al magazziniere</h3><p class="small muted">Come un responsabile che se ne occupa al posto tuo: decide lui, tu controlli la cassa.</p>' + tgl('autoCyl', P.autoCyl, 'Compra da solo le bombole che mancano', 'Usate, ogni mese, solo se in cassa restano almeno 15.000 €.') + tgl('autoTrucks', P.autoTrucks, 'Aggiungi e togli da solo i camion', 'Tiene in ogni deposito i camion che servono per le consegne.') + '</div>' +
     '<div class="card">' + tgl('outsource', P.outsource, 'Usa trasportatori esterni quando i camion non bastano', 'Costano circa ' + eur2(7.5 * I) + ' a bombola, più la distanza. Senza, le consegne in più saltano e il servizio scende.') + '</div></section>';
 }
 function tabFin() {
@@ -1494,7 +1505,7 @@ function tabGui() {
   const ng = '<div class="card stack"><h3>Partita</h3><p class="small muted">Il gioco si salva da solo dopo ogni mossa.</p><div class="row">' + conf('newgame', 'Abbandona e inizia una nuova partita', 'newgame', '', 'Sì, ricomincia', 'danger') + '</div></div>';
   const AP = window.APscreen, scr = AP ? '<div class="card stack"><h3>Schermo del telefono</h3><p class="small">Se la prima riga in alto finisce sotto l\'orologio, premi +. Se resta troppo spazio vuoto in alto, premi −.</p>' + step('scrn', '', (AP.user() > 0 ? '+' : '') + AP.user(), 'Sposta il gioco più in alto', 'Sposta il gioco più in basso') + '<p class="small muted">' + esc(AP.info()) + '</p></div>' : '';
   return '<section class="guide">' + scr +
-    sec('L\'obiettivo', ['Hai 10 anni per far crescere l\'azienda. Ogni turno è un mese: decidi, poi premi "Prossimo mese".', 'Il valore è 6,5 volte l\'EBITDA degli ultimi 12 mesi, più gli immobili di proprietà e la cassa, meno prestiti e anticipi. Se hai venduto quote, conta solo la tua parte. Traguardi: 2, 5, 10 e 20 milioni.', 'Perdi se resti in scoperto oltre il limite della banca per due mesi di fila.']) +
+    sec('L\'obiettivo', ['Hai 10 anni per far crescere l\'azienda. Ogni turno è un mese: decidi, poi premi "Prossimo mese".', 'Il valore è 6,5 volte l\'EBITDA degli ultimi 12 mesi, più gli immobili di proprietà e la cassa, meno prestiti e anticipi. Se hai venduto quote, conta solo la tua parte. Traguardi: 2, 5, 10 e 20 milioni.', 'Perdi se resti in scoperto oltre il fido della banca per tre mesi di fila. Al primo mese la banca ti impone l\'anticipo fatture.']) +
     sec('Tre attività sotto lo stesso tetto', ['<b>Gas</b>: vendi bombole piene a officine, alimentare, sanità e laboratori in sette zone del Veneto. Il mercato è saturo: i clienti hanno già un fornitore e cambiano piano.', '<b>Collaudo</b>: ogni bombola va ricollaudata ogni dieci anni. Lo fai per le tue e per le altre aziende del gas. Margine basso, tanto lavoro: conta l\'organizzazione.', '<b>Pacchi</b>: costruisci e revisioni pacchi da 16 bombole. Pochi ordini, grossi, da pochi clienti.']) +
     sec('Le bombole girano', ['Le bombole sono tue. Stanno dal cliente da uno a tre mesi, tornano vuote, le riempi e ripartono. Intanto il cliente paga il noleggio.', 'Se ne hai poche non consegni, anche se il cliente c\'è. Se ne hai troppe hai capitale fermo. Ogni mese qualcuna non torna.', 'Ogni nuovo cliente vuol dire comprare bombole prima di incassare: crescere costa.']) +
     sec('Rivendere o riempire', ['All\'inizio compri le bombole già piene da Gruppo Borea e le rivendi. Con una linea di riempimento compri il gas liquido e riempi in casa: il margine sale molto.', 'Ma Borea è anche il tuo primo cliente in officina. Più gas riempi in casa, meno ne compri da lui: il rapporto si raffredda e ti arrivano meno collaudi e meno pacchi. Devi scegliere quanto puntare sul gas e quanto sull\'officina.']) +
@@ -1512,7 +1523,7 @@ function modalHTML() {
   if (UI.modal === 'intro') return '<div class="modal" role="dialog" aria-modal="true" aria-labelledby="mt"><div><h4>Come si gioca</h4><h2 id="mt">Cinque cose da sapere</h2><ol class="intro">' +
     '<li><b>Ogni turno è un mese.</b> Fai le tue scelte, poi premi "Prossimo mese".</li>' +
     '<li><b>Guadagni in tre modi:</b> vendi gas in bombola, collaudi bombole per altre aziende, costruisci pacchi.</li>' +
-    '<li><b>Più clienti vuol dire più bombole e più camion.</b> Se mancano, non consegni: il servizio scende e i clienti se ne vanno.</li>' +
+    '<li><b>Più clienti vuol dire più bombole e più camion.</b> Senza bombole non consegni tutto e perdi vendite. In Azienda, Logistica puoi farle comprare in automatico.</li>' +
     '<li><b>I clienti pagano dopo mesi.</b> Crescendo la cassa scende, anche se guadagni. Anticipo fatture e prestiti servono a questo.</li>' +
     '<li><b>Guarda gli Avvisi.</b> Dicono cosa non va, perché, e hanno un tasto per sistemare.</li></ol>' +
     '<p class="small muted">Consiglio: cresci un passo alla volta. Un venditore, poi le bombole che servono, poi il resto. La trovi anche in Altro, Guida.</p><div class="row"><button class="primary" data-a="intro">Ho capito, inizia</button></div></div></div>';
