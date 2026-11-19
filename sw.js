@@ -1,5 +1,5 @@
 /* Tiene una copia del gioco sul telefono: così parte anche senza internet. */
-const CACHE = 'alta-pressione-v3';
+const CACHE = 'alta-pressione-v4';
 const FILES = ['./', 'index.html', 'manifest.webmanifest', 'icon-180.png', 'icon-192.png', 'icon-512.png'];
 const FONTS = 'https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@500;600;700;800&display=swap';
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES).then(() => fetch(FONTS).then(r => c.put(FONTS, r)).catch(() => {}))).then(() => self.skipWaiting())); });

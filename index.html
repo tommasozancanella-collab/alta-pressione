@@ -6,7 +6,6 @@
 <title>Alta Pressione</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="Pressione">
 <meta name="theme-color" content="#16283A">
 <link rel="manifest" href="manifest.webmanifest">
@@ -244,7 +243,10 @@ button.lnk { background: none; border: 0; box-shadow: none; padding: 0; min-heig
 .opts .row.sp { align-items: flex-start; gap: 8px; } .opts .row.sp b { min-width: 0; }
 
 /* Bordi dello schermo del telefono: la tacca in alto e la barretta in basso. Lo spazio lo prende il gioco, non la pagina. */
-#app { border-top: env(safe-area-inset-top, 0px) solid #16283A; }
+/* Da iOS 26 il telefono sfoca la pagina sotto la barra di stato. Quando il gioco finisce lì sotto, si lascia un po' di spazio in più
+   e si mette una fascia piena dietro l'orologio, così la sfocatura non tocca le scritte. */
+#app { border-top: calc(env(safe-area-inset-top, 0px) * 1.36) solid #16283A; }
+body::before { content: ""; position: fixed; top: 0; left: 0; right: 0; height: env(safe-area-inset-top, 0px); background: #16283A; z-index: 80; pointer-events: none; }
 .nav { padding-bottom: max(6px, calc(env(safe-area-inset-bottom, 0px) - 12px)); }
 </style>
 </head>
