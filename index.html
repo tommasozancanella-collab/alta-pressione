@@ -245,13 +245,40 @@ button.lnk { background: none; border: 0; box-shadow: none; padding: 0; min-heig
 /* Bordi dello schermo del telefono: la tacca in alto e la barretta in basso. Lo spazio lo prende il gioco, non la pagina. */
 /* Da iOS 26 il telefono sfoca la pagina sotto la barra di stato. Quando il gioco finisce lì sotto, si lascia un po' di spazio in più
    e si mette una fascia piena dietro l'orologio, così la sfocatura non tocca le scritte. */
-#app { border-top: calc(env(safe-area-inset-top, 0px) * 1.36) solid #16283A; }
-body::before { content: ""; position: fixed; top: 0; left: 0; right: 0; height: env(safe-area-inset-top, 0px); background: #16283A; z-index: 80; pointer-events: none; }
+#app { border-top: calc(env(safe-area-inset-top, 0px) * 1.36 + var(--top-extra, 0px)) solid #16283A; }
+body::before { content: ""; position: fixed; top: 0; left: 0; right: 0; height: calc(env(safe-area-inset-top, 0px) * 1.36 + var(--top-extra, 0px)); background: #16283A; z-index: 80; pointer-events: none; }
 .nav { padding-bottom: max(6px, calc(env(safe-area-inset-bottom, 0px) - 12px)); }
 </style>
 </head>
 <body>
 <div id="app"></div>
+<script>
+/* Bordi dello schermo del telefono. Tre cose: allunga la pagina se il telefono la tiene più corta dello schermo; sposta il gioco in basso
+   se finisce sotto l'orologio senza che il telefono lo dichiari; lascia al giocatore una regolazione a mano (Altro, Guida, Schermo). */
+(function () {
+  var VERSION = 'v5', KEY = 'alta-pressione-schermo', nav = window.navigator;
+  var sa = !!(nav.standalone || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches));
+  var ios = /iPhone|iPad|iPod/.test(nav.userAgent) || (nav.platform === 'MacIntel' && nav.maxTouchPoints > 1);
+  function mk(side) { var d = document.createElement('div'); d.style.cssText = 'position:fixed;top:0;left:0;width:0;height:env(safe-area-inset-' + side + ',0px);visibility:hidden;pointer-events:none'; document.documentElement.appendChild(d); return d; }
+  var pT = mk('top'), pB = mk('bottom'), user = 0, st = { auto: 0 }; try { user = +window.localStorage.getItem(KEY) || 0; } catch (e) { /* ignora */ }
+  function fit() {
+    var top = pT.offsetHeight, ih = window.innerHeight, sh = window.screen.height, portrait = ih >= window.innerWidth, gap = sh - ih, auto = 0, h = '';
+    if (sa && ios && portrait) {
+      if (top > 0 && gap > 8 && gap < 90) h = sh + 'px';                    // pagina più corta dello schermo: resterebbe una fascia vuota in basso
+      if (top === 0 && Math.abs(gap) < 8) auto = Math.round(sh * 0.094);    // il gioco è sotto l'orologio ma il telefono dichiara margine zero
+    }
+    document.documentElement.style.height = h;
+    document.documentElement.style.setProperty('--top-extra', Math.max(-Math.round(top * 1.36), auto + user) + 'px');
+    st = { auto: auto, top: top, bot: pB.offsetHeight, ih: ih, iw: window.innerWidth, sh: sh, sw: window.screen.width, tall: h ? 1 : 0 };
+  }
+  window.APscreen = {
+    user: function () { return user; },
+    nudge: function (d) { user = Math.max(-120, Math.min(160, user + d)); try { window.localStorage.setItem(KEY, String(user)); } catch (e) { /* ignora */ } fit(); },
+    info: function () { fit(); return 'Versione ' + VERSION.replace('v', '') + ' · app ' + (sa ? 'sì' : 'no') + ' · schermo ' + st.sw + '×' + st.sh + ' · finestra ' + st.iw + '×' + st.ih + ' · margini del telefono ' + st.top + '/' + st.bot + ' · automatico ' + st.auto + (st.tall ? ' · allungata' : '') + ' · tuo ' + user; }
+  };
+  fit(); window.addEventListener('resize', fit); window.addEventListener('orientationchange', function () { setTimeout(fit, 350); }); setTimeout(fit, 500);
+})();
+</script>
 <script>
 /* Motore di "Alta Pressione": un'azienda di gas tecnici, collaudo bombole e pacchi. Un turno = un mese. Nessuna dipendenza dal browser. */
 (function (root) {
@@ -1439,7 +1466,8 @@ function tabNot() { const items = S.log.slice().reverse(); return '<section><div
 function tabGui() {
   const sec = (t, ps) => '<div class="card stack"><h3>' + t + '</h3>' + ps.map(p => '<p>' + p + '</p>').join('') + '</div>';
   const ng = '<div class="card stack"><h3>Partita</h3><p class="small muted">Il gioco si salva da solo dopo ogni mossa.</p><div class="row">' + conf('newgame', 'Abbandona e inizia una nuova partita', 'newgame', '', 'Sì, ricomincia', 'danger') + '</div></div>';
-  return '<section class="guide">' +
+  const AP = window.APscreen, scr = AP ? '<div class="card stack"><h3>Schermo del telefono</h3><p class="small">Se la prima riga in alto finisce sotto l\'orologio, premi +. Se resta troppo spazio vuoto in alto, premi −.</p>' + step('scrn', '', (AP.user() > 0 ? '+' : '') + AP.user(), 'Sposta il gioco più in alto', 'Sposta il gioco più in basso') + '<p class="small muted">' + esc(AP.info()) + '</p></div>' : '';
+  return '<section class="guide">' + scr +
     sec('L\'obiettivo', ['Hai 10 anni per far crescere l\'azienda. Ogni turno è un mese: decidi, poi premi "Prossimo mese".', 'Il valore è 6,5 volte l\'EBITDA degli ultimi 12 mesi, più gli immobili di proprietà e la cassa, meno prestiti e anticipi. Se hai venduto quote, conta solo la tua parte. Traguardi: 2, 5, 10 e 20 milioni.', 'Perdi se resti in scoperto oltre il limite della banca per due mesi di fila.']) +
     sec('Tre attività sotto lo stesso tetto', ['<b>Gas</b>: vendi bombole piene a officine, alimentare, sanità e laboratori in sette zone del Veneto. Il mercato è saturo: i clienti hanno già un fornitore e cambiano piano.', '<b>Collaudo</b>: ogni bombola va ricollaudata ogni dieci anni. Lo fai per le tue e per le altre aziende del gas. Margine basso, tanto lavoro: conta l\'organizzazione.', '<b>Pacchi</b>: costruisci e revisioni pacchi da 16 bombole. Pochi ordini, grossi, da pochi clienti.']) +
     sec('Le bombole girano', ['Le bombole sono tue. Stanno dal cliente da uno a tre mesi, tornano vuote, le riempi e ripartono. Intanto il cliente paga il noleggio.', 'Se ne hai poche non consegni, anche se il cliente c\'è. Se ne hai troppe hai capitale fermo. Ogni mese qualcuna non torna.', 'Ogni nuovo cliente vuol dire comprare bombole prima di incassare: crescere costa.']) +
@@ -1517,6 +1545,7 @@ const ACT = {
   sellprop: el => { UI.confirm = null; say(E.sellProperty(S, at(el, 'id'))); },
   grow: () => { UI.confirm = null; say(E.growSede(S)); },
   pv: () => say(E.buyPV(S)),
+  scrn: el => { if (window.APscreen) window.APscreen.nudge(8 * +at(el, 'dl')); render(); },
   ask: el => { UI.confirm = at(el, 'k'); render(); },
   noconf: () => { UI.confirm = null; render(); },
   event: el => say(E.resolveEvent(S, +at(el, 'i'))),
@@ -1539,13 +1568,6 @@ if (window.claude && window.claude.hot && window.claude.hot.ready) window.claude
 
 </script>
 <script>
-/* Su alcuni iPhone, in modalità app, la pagina risulta più corta dello schermo e resta una fascia vuota in basso: qui la si allunga a tutto schermo. */
-(function () {
-  var sa = window.navigator.standalone || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches); if (!sa) return;
-  var probe = document.createElement('div'); probe.style.cssText = 'position:fixed;top:0;left:0;width:0;height:env(safe-area-inset-top,0px);visibility:hidden;pointer-events:none'; document.documentElement.appendChild(probe);
-  function fit() { var top = probe.offsetHeight, ih = window.innerHeight, sh = window.screen.height, portrait = ih >= window.innerWidth, gap = sh - ih; document.documentElement.style.height = top > 0 && portrait && gap > 8 && gap < 90 ? sh + 'px' : ''; }
-  fit(); window.addEventListener('resize', fit); window.addEventListener('orientationchange', function () { setTimeout(fit, 350); }); setTimeout(fit, 500);
-})();
 if ('serviceWorker' in navigator) window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
 </script>
 </body>
