@@ -1,0 +1,1540 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>Alta Pressione</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Pressione">
+<meta name="theme-color" content="#16283A">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@500;600;700;800&display=swap">
+<style>
+html { box-sizing: border-box; background: #16283A; padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px); -webkit-text-size-adjust: 100%; }
+body { margin: 0; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+img { max-width: 100%; } [hidden] { display: none !important; }
+/* Impianto: app a schermo intero. In alto la barra con cassa e data, al centro la mappa o una schermata che scorre, in basso la navigazione. Le schede salgono dal basso. Tema unico, scelto apposta: cornice blu notte, mappa di giorno, accento giallo crema. */
+:root {
+  --chrome: #16283A; --chrome2: #213A52; --on-chrome: #EAF1F7; --on-chrome-muted: #9DB2C6;
+  --accent: #FFC145; --accent-d: #D2941A; --accent-ink: #2A1E00;
+  --bg: #EDF1F5; --surface: #FFFFFF; --surface2: #F2F5F8; --ink: #16283A; --muted: #5E7186; --line: #DAE1E8;
+  --good: #1B9455; --warn: #B06A00; --bad: #D23F2C; --c1: #1B9455; --c2: #E08A00; --c3: #4C6FFF;
+  --f-head: 'Fredoka', 'Trebuchet MS', system-ui, sans-serif; --f-body: 'Nunito', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --gl: max(16px, env(safe-area-inset-left, 0px)); --gr: max(16px, env(safe-area-inset-right, 0px));
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { background: var(--chrome); color: var(--ink); font: 500 15px/1.45 var(--f-body); overscroll-behavior: none; }
+h1, h2, h3, h4 { font-family: var(--f-head); margin: 0; line-height: 1.2; text-wrap: balance; font-weight: 600; }
+h2 { font-size: 1.3rem; } h3 { font-size: 1.08rem; } h4 { font-size: .78rem; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
+p { margin: 0; }
+.muted { color: var(--muted); } .small { font-size: .86rem; }
+.num { font-family: var(--f-head); font-variant-numeric: tabular-nums; }
+.good { color: var(--good); } .bad { color: var(--bad); } .warn { color: var(--warn); }
+button, select, input { font: inherit; color: inherit; }
+button { cursor: pointer; border: 1px solid var(--line); background: var(--surface); border-radius: 12px; padding: 8px 14px; min-height: 42px; font-weight: 700; box-shadow: 0 2px 0 var(--line); transition: transform .06s; }
+button:active { transform: translateY(2px); box-shadow: none; }
+button:focus-visible, select:focus-visible, input:focus-visible, summary:focus-visible { outline: 3px solid var(--c3); outline-offset: 2px; }
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent-d); box-shadow: 0 3px 0 var(--accent-d); }
+button.danger { color: var(--bad); border-color: var(--bad); background: transparent; box-shadow: none; }
+button.ghost { background: transparent; box-shadow: none; }
+button:disabled { opacity: .45; cursor: not-allowed; }
+select, input[type=number], input[type=text] { background: var(--surface2); border: 1px solid var(--line); border-radius: 12px; padding: 8px 10px; min-height: 42px; max-width: 100%; font-weight: 600; }
+input[type=range] { width: 100%; accent-color: var(--accent-d); }
+
+#app { height: 100%; max-width: 1040px; margin: 0 auto; display: flex; flex-direction: column; background: var(--bg); position: relative; overflow: hidden; }
+
+/* barra in alto */
+.hud { background: var(--chrome); color: var(--on-chrome); padding: 8px var(--gr) 10px var(--gl); display: grid; gap: 8px; }
+.hudrow { display: flex; justify-content: space-between; align-items: center; gap: 10px; min-width: 0; }
+.brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.brand .logo { width: 38px; height: 38px; border-radius: 12px; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; flex: none; }
+.brand b { font-family: var(--f-head); font-size: 1.02rem; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.brand span { font-size: .78rem; color: var(--on-chrome-muted); }
+.brand > div { min-width: 0; }
+.money { display: flex; gap: 6px; flex: none; }
+.chip { background: var(--chrome2); border-radius: 12px; padding: 4px 10px; display: grid; }
+.chip span { font-size: .64rem; text-transform: uppercase; letter-spacing: .06em; color: var(--on-chrome-muted); }
+.chip b { font-family: var(--f-head); font-variant-numeric: tabular-nums; font-size: .98rem; white-space: nowrap; }
+.chip b.neg { color: #FF8E80; }
+.hud button { background: var(--chrome2); color: var(--on-chrome); border-color: transparent; box-shadow: 0 2px 0 #0D1B29; min-height: 40px; padding: 8px 11px; white-space: nowrap; font-size: .95rem; }
+.hud button.primary { background: var(--accent); color: var(--accent-ink); box-shadow: 0 3px 0 var(--accent-d); }
+.bell i { font-style: normal; background: var(--bad); color: #fff; border-radius: 99px; padding: 0 7px; margin-right: 7px; font-size: .8rem; }
+.time { display: flex; gap: 6px; }
+.ico { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; display: block; }
+
+/* centro */
+.stage { flex: 1; min-height: 0; position: relative; display: flex; }
+.scr { flex: 1; min-width: 0; overflow: auto; padding: 14px var(--gr) 28px var(--gl); display: grid; gap: 14px; align-content: start; }
+.scr > section { display: grid; gap: 14px; }
+.mapwrap { flex: 1; min-width: 0; position: relative; overflow: hidden; background: #CFE3B4; touch-action: none; user-select: none; -webkit-user-select: none; }
+#map { width: 100%; height: 100%; display: block; cursor: grab; }
+#map .hit { cursor: pointer; }
+.mapui { position: absolute; display: flex; gap: 6px; flex-wrap: wrap; }
+.mapui.cities { top: 10px; left: var(--gl); right: 66px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding: 0 2px 8px; }
+.mapui.cities::-webkit-scrollbar { display: none; }
+.mapui.cities button { flex: none; white-space: nowrap; }
+.mapui.cities button { border-radius: 99px; min-height: 36px; padding: 4px 13px; background: rgba(255,255,255,.94); box-shadow: 0 2px 6px rgba(20,40,60,.25); border-color: transparent; }
+.mapui.cities button[aria-pressed=true] { background: var(--chrome); color: var(--on-chrome); }
+.mapui.cities button small { font-weight: 600; opacity: .7; margin-left: 4px; }
+.mapui.zoom { top: 10px; right: var(--gr); flex-direction: column; }
+.mapui.zoom button { width: 42px; padding: 0; font-size: 1.3rem; background: rgba(255,255,255,.94); box-shadow: 0 2px 6px rgba(20,40,60,.25); border-color: transparent; }
+.mapnote { position: absolute; left: var(--gl); right: var(--gr); bottom: 12px; background: rgba(255,255,255,.96); border-radius: 16px; padding: 12px 14px; box-shadow: 0 4px 16px rgba(20,40,60,.25); display: grid; gap: 8px; max-width: 520px; margin: 0 auto; }
+.maplegend { position: absolute; left: var(--gl); bottom: 12px; background: rgba(255,255,255,.9); border-radius: 99px; padding: 5px 12px; font-size: .78rem; display: flex; gap: 12px; align-items: center; box-shadow: 0 2px 6px rgba(20,40,60,.2); }
+.maplegend i { display: inline-block; width: 11px; height: 11px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; }
+.pin { cursor: pointer; }
+.pin text { font: 700 11px var(--f-head); pointer-events: none; }
+.pin .pb { fill: var(--accent); stroke: #2A1E00; stroke-width: 2; }
+.pin .pi { fill: #fff; }
+.pin .cup { fill: none; stroke: #2A1E00; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.pin.build .pb { fill: #D9DEE4; stroke-dasharray: 4 3; }
+.pin .sd { stroke: #fff; stroke-width: 2; }
+.pin .sd.ok { fill: #1B9455; } .pin .sd.warn { fill: #F0A020; } .pin .sd.bad { fill: #D23F2C; }
+.pin.co circle { stroke: #fff; stroke-width: 2.5; }
+.pin.co text { fill: #fff; font-size: 10px; }
+.pin.co.build { opacity: .5; }
+.pin.plot .pl { fill: rgba(255,255,255,.92); stroke: #16283A; stroke-width: 2; stroke-dasharray: 4 3; }
+.pin.plot .plx { stroke: #16283A; stroke-width: 2.5; stroke-linecap: round; }
+.pin.lab rect { fill: rgba(22,40,58,.88); }
+.pin.lab text { fill: #fff; font-size: 12px; }
+.pin .pop rect { fill: #fff; stroke: #16283A; stroke-width: 1.5; }
+.pin .pop text { font-size: 11px; }
+.pin .pop { animation: pop 2.6s ease-out forwards; }
+@keyframes pop { 0% { opacity: 0; transform: translateY(8px); } 12% { opacity: 1; transform: translateY(0); } 75% { opacity: 1; } 100% { opacity: 0; transform: translateY(-14px); } }
+
+/* navigazione in basso */
+.nav { display: flex; background: var(--chrome); padding: 4px max(6px, env(safe-area-inset-right, 0px)) 6px max(6px, env(safe-area-inset-left, 0px)); gap: 2px; }
+.nav button { flex: 1; background: transparent; border: 0; box-shadow: none; color: var(--on-chrome-muted); display: grid; justify-items: center; gap: 1px; padding: 6px 2px; font-size: .72rem; font-weight: 700; border-radius: 12px; min-width: 0; }
+.nav button[aria-current=page] { color: var(--accent); background: var(--chrome2); }
+.seg { display: flex; gap: 6px; flex-wrap: wrap; }
+.seg button { border-radius: 99px; padding: 5px 14px; min-height: 36px; }
+.seg button[aria-pressed=true] { background: var(--chrome); color: var(--on-chrome); border-color: var(--chrome); box-shadow: none; }
+
+/* schede dal basso */
+.backdrop { position: absolute; inset: 0; background: rgba(10,22,34,.42); z-index: 15; }
+.sheet { position: absolute; left: 0; right: 0; bottom: 0; max-height: 88%; max-width: 760px; margin: 0 auto; background: var(--surface); border-radius: 22px 22px 0 0; z-index: 16; display: flex; flex-direction: column; box-shadow: 0 -10px 34px rgba(0,0,0,.3); }
+.sheethead { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; padding: 14px var(--gr) 8px var(--gl); }
+.sheethead::before { content: ""; position: absolute; top: 6px; left: 50%; width: 44px; height: 4px; margin-left: -22px; border-radius: 4px; background: var(--line); }
+.sheethead button { min-height: 36px; width: 36px; padding: 0; border-radius: 50%; font-size: 1.2rem; flex: none; }
+.sheetbody { overflow: auto; padding: 4px var(--gr) 22px var(--gl); display: grid; gap: 12px; }
+.sheetbody .shopbody { padding: 0; border: 0; }
+
+/* contenuti */
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 14px; box-shadow: 0 2px 0 var(--line); min-width: 0; }
+.grid { display: grid; gap: 14px; grid-template-columns: 1fr; }
+.tiles { display: grid; gap: 10px; grid-template-columns: repeat(2, 1fr); }
+.tile { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 12px; min-width: 0; box-shadow: 0 2px 0 var(--line); }
+.tile > span { display: block; font-size: .76rem; color: var(--muted); font-weight: 700; }
+.tile b { display: block; font-family: var(--f-head); font-size: 1.35rem; font-variant-numeric: tabular-nums; margin-top: 2px; overflow-wrap: anywhere; }
+.tile small { color: var(--muted); }
+.tiles.t3 { grid-template-columns: repeat(3, 1fr); } .tiles.t3 .tile b { font-size: 1.1rem; }
+.tiles.t4 { grid-template-columns: repeat(2, 1fr); }
+@media (min-width: 760px) {
+  .tiles { grid-template-columns: repeat(6, 1fr); } .tiles.t4 { grid-template-columns: repeat(4, 1fr); }
+  .grid.two { grid-template-columns: 1fr 1fr; } .grid.three { grid-template-columns: repeat(3, 1fr); }
+}
+.chartbox { overflow-x: auto; }
+svg.chart { display: block; max-width: 100%; height: auto; }
+svg.chart text { fill: var(--muted); font: 11px var(--f-body); }
+svg.chart .grid { stroke: var(--line); stroke-width: 1; }
+svg.chart .l1 { stroke: var(--c1); fill: none; stroke-width: 2.6; } svg.chart .l2 { stroke: var(--c2); fill: none; stroke-width: 2.6; } svg.chart .l3 { stroke: var(--c3); fill: none; stroke-width: 2.6; }
+svg.chart .d1 { fill: var(--c1); } svg.chart .d2 { fill: var(--c2); } svg.chart .d3 { fill: var(--c3); }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: .85rem; color: var(--muted); margin-top: 6px; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+.alerts { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 8px; }
+.alerts li { display: grid; grid-template-columns: 10px 1fr; gap: 10px; align-items: start; }
+.dot { width: 10px; height: 10px; border-radius: 50%; margin-top: 6px; background: var(--muted); }
+.dot.good { background: var(--good); } .dot.bad { background: var(--bad); } .dot.warn { background: #F0A020; }
+table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+th { font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 800; }
+td.r, th.r { text-align: right; font-variant-numeric: tabular-nums; }
+.tw { overflow-x: auto; }
+tr.me td, tr.tot td { font-weight: 800; background: var(--surface2); }
+table.fin td, table.fin th { white-space: nowrap; } table.fin td:first-child { white-space: normal; min-width: 150px; }
+.bar { height: 10px; background: var(--surface2); border-radius: 99px; overflow: hidden; border: 1px solid var(--line); }
+.bar > i { display: block; height: 100%; background: var(--good); border-radius: 99px; }
+.bar.warn > i { background: #F0A020; } .bar.bad > i { background: var(--bad); }
+.pill { display: inline-block; padding: 2px 9px; border-radius: 99px; font-size: .75rem; font-weight: 800; border: 1.5px solid var(--line); color: var(--muted); white-space: nowrap; }
+.pill.good { color: var(--good); border-color: var(--good); } .pill.bad { color: var(--bad); border-color: var(--bad); } .pill.warn { color: var(--warn); border-color: #F0A020; }
+.shop { padding: 0; overflow: hidden; } .shop.on { border-color: var(--accent-d); }
+.rowbtn { width: 100%; border: 0; border-radius: 0; background: transparent; box-shadow: none; display: flex; flex-wrap: wrap; gap: 6px 14px; justify-content: space-between; align-items: center; padding: 12px 14px; text-align: left; font-weight: 600; }
+.rowbtn:hover { background: var(--surface2); }
+.rowbtn .rn { min-width: 0; }
+.rowbtn .rs { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; font-variant-numeric: tabular-nums; font-size: .9rem; color: var(--muted); }
+.rowbtn .rs .good { color: var(--good); } .rowbtn .rs .bad { color: var(--bad); } .rowbtn .rs .warn { color: var(--warn); }
+.shopbody { display: grid; gap: 12px; padding: 12px 14px 14px; border-top: 1px solid var(--line); }
+.stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+@media (min-width: 560px) { .stats { grid-template-columns: repeat(4, 1fr); } }
+.stats div { background: var(--surface2); border-radius: 12px; padding: 8px 10px; }
+.stats div span { display: block; font-size: .72rem; color: var(--muted); font-weight: 700; }
+.stats div b { font-family: var(--f-head); font-variant-numeric: tabular-nums; font-size: 1.05rem; }
+.controls { display: grid; gap: 10px; grid-template-columns: 1fr; }
+@media (min-width: 640px) { .controls { grid-template-columns: repeat(2, 1fr); } }
+.ctl { display: grid; gap: 4px; min-width: 0; align-content: start; }
+.ctl > label, .ctl > .lbl { font-size: .8rem; color: var(--muted); font-weight: 800; }
+.step { display: grid; grid-template-columns: 46px 1fr 46px; gap: 6px; align-items: center; }
+.step button { padding: 0; font-size: 1.3rem; }
+.step output { text-align: center; font-family: var(--f-head); font-weight: 600; font-size: 1.1rem; font-variant-numeric: tabular-nums; }
+.hint { font-size: .84rem; color: var(--muted); } .hint.warn { color: var(--warn); } .hint.bad { color: var(--bad); }
+.preview { background: #FFF6DC; border: 1.5px solid var(--accent); border-radius: 12px; padding: 8px 10px; }
+details { border-top: 1px solid var(--line); padding-top: 8px; } details.card { border-top: 1px solid var(--line); }
+summary { cursor: pointer; font-weight: 700; padding: 4px 0; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; } .row.sp { justify-content: space-between; }
+.stack { display: grid; gap: 8px; }
+.pick { display: grid; gap: 8px; grid-template-columns: 1fr; }
+@media (min-width: 640px) { .pick.three { grid-template-columns: repeat(3, 1fr); } }
+.opt { text-align: left; display: grid; gap: 2px; height: 100%; font-weight: 600; }
+.opt b { font-family: var(--f-head); font-size: 1.02rem; }
+.opt[aria-pressed=true] { border-color: var(--accent-d); background: #FFF6DC; }
+.log { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.log li { display: grid; grid-template-columns: 96px 10px 1fr; gap: 10px; align-items: start; }
+.log time { font-size: .8rem; color: var(--muted); }
+.sparkline { width: 84px; height: 24px; } .sparkline polyline { fill: none; stroke: var(--c3); stroke-width: 1.8; }
+.sl { display: grid; grid-template-columns: 112px 1fr 38px; gap: 8px; align-items: center; font-size: .85rem; } .sl b { text-align: right; font-variant-numeric: tabular-nums; }
+.guide p { max-width: 68ch; } .ghead { margin-top: 6px; }
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(86px + env(safe-area-inset-bottom, 0px)); background: var(--chrome); color: var(--on-chrome); padding: 10px 16px; border-radius: 14px; z-index: 60; max-width: min(92vw, 520px); box-shadow: 0 6px 24px rgba(0,0,0,.3); font-weight: 700; }
+.toast.err { background: var(--bad); color: #fff; }
+.modal { position: fixed; inset: 0; background: rgba(8,18,28,.66); z-index: 50; display: grid; place-items: center; padding: 16px; }
+.modal > div { background: var(--surface); border-radius: 22px; padding: 20px; max-width: 520px; width: 100%; display: grid; gap: 12px; max-height: 90vh; overflow: auto; border-top: 8px solid var(--accent); }
+.modal .opt { width: 100%; }
+/* schermata iniziale */
+.startwrap { flex: 1; position: relative; overflow: auto; display: grid; place-items: center; padding: 20px var(--gr) 20px var(--gl); }
+.startbg { position: absolute; inset: 0; } .startbg svg { width: 100%; height: 100%; display: block; }
+.startbg::after { content: ""; position: absolute; inset: 0; background: linear-gradient(rgba(22,40,58,.55), rgba(22,40,58,.82)); }
+.start { position: relative; display: grid; gap: 16px; max-width: 640px; width: 100%; }
+.start h1 { font-size: 2.6rem; color: #fff; }
+.start > div > p.lead { color: #E3ECF4; margin-top: 6px; }
+.start > p { color: #D5E0EA; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } .pin .pop { animation: none; } }
+
+/* --- Alta Pressione: mappa a zone --- */
+.pin.zone .zb { fill: #fff; stroke: #16283A; stroke-width: 2.5; }
+.pin.zone .zr { fill: none; stroke: #DAE1E8; stroke-width: 5; }
+.pin.zone .zs { fill: none; stroke-width: 5; stroke-linecap: round; }
+.pin.zone .zs.ok { stroke: #1B9455; } .pin.zone .zs.warn { stroke: #F0A020; } .pin.zone .zs.bad { stroke: #D23F2C; } .pin.zone .zs.none { stroke: #9DB2C6; }
+.pin.zone .zt { font: 700 12.5px var(--f-head); fill: #16283A; }
+.pin.zone .zl { fill: rgba(22,40,58,.9); }
+.pin.zone .zn { font: 700 12px var(--f-head); fill: #fff; }
+.pin.zone .dp { fill: var(--accent); stroke: #2A1E00; stroke-width: 2; }
+.pin.zone .dpi { fill: none; stroke: #2A1E00; stroke-width: 1.8; stroke-linejoin: round; }
+.pin.zone .db { fill: #16283A; stroke: #fff; stroke-width: 1.5; }
+.pin.zone .dbt { font: 700 10.5px var(--f-head); fill: #fff; }
+.pin.zone .rp { fill: #4C6FFF; stroke: #fff; stroke-width: 2; }
+.pin.zone .rpi { fill: #fff; }
+.maplegend { flex-wrap: wrap; row-gap: 2px; max-width: calc(100% - 90px); }
+/* interruttore */
+.tgl { display: flex; align-items: center; gap: 10px; text-align: left; width: 100%; background: var(--surface2); box-shadow: none; font-weight: 700; }
+.tgl i { flex: none; width: 42px; height: 24px; border-radius: 99px; background: #C3CDD8; position: relative; transition: background .15s; }
+.tgl i::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.3); transition: left .15s; }
+.tgl[aria-pressed=true] i { background: var(--good); } .tgl[aria-pressed=true] i::after { left: 21px; }
+button.lnk { background: none; border: 0; box-shadow: none; padding: 0; min-height: 0; font-weight: 800; color: #2848C8; text-decoration: underline; text-underline-offset: 3px; }
+.step output small { font: 700 .78rem var(--f-body); }
+
+.sheetbody { grid-auto-rows: max-content; align-content: start; }
+.mapui.zoom { left: var(--gl); right: auto; }
+.card.stack { align-content: start; }
+
+.opts > div { border-top: 1px solid var(--line); padding: 12px 0; display: grid; gap: 5px; } .opts > div:first-child { border-top: 0; }
+.opts .row.sp { align-items: flex-start; gap: 8px; } .opts .row.sp b { min-width: 0; }
+
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+/* Motore di "Alta Pressione": un'azienda di gas tecnici, collaudo bombole e pacchi. Un turno = un mese. Nessuna dipendenza dal browser. */
+(function (root) {
+'use strict';
+
+const MESI = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno','Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
+const START_YEAR = 2027, END_MONTHS = 120, TAX = 0.279, EV_MULT = 6.5;
+const SAL = { worker: 2950, driver: 3500, rep: 4000, office: 2950, depot: 2950, stipend: 2500 };
+const CYL_NEW = 185, CYL_USED = 100, CYL_SCRAP = 35, TRUCK_COST = 2800, DEPOT_RENT = 3200, DEPOT_CAPEX = 50000;
+/* Immobili. Affitti e prezzi dei capannoni: annunci in provincia di Vicenza (circa 30-40 €/mq l'anno in affitto, 330-700 €/mq in vendita). */
+const RENT_MQ = 36, PRICE_MQ = 450, BUILD_MQ = 500, DEPOT_MQ = 600, PV_KWP = 720, PV_SAVE = 15, SITE_RUN = { sede: 500, depot: 1400 };
+const SITES = [
+  { name: 'Capannone piccolo', mq: 900,  workers: 8,  lines: 2, kwp: 80 },
+  { name: 'Capannone medio',   mq: 1800, workers: 18, lines: 4, kwp: 160 },
+  { name: 'Capannone grande',  mq: 3600, workers: 40, lines: 4, kwp: 300 }
+];
+const TEST_REF = 34, TEST_VAR = 9, TEST_PROD = 170, TEST_OUT = 36;
+const PACK_REF = 9800, PACK_MAT = 6900, PACK_PROD = 5, REV_REF = 1400, REV_MAT = 450;
+
+const GASES = [
+  { id: 'o2',  name: 'Ossigeno',        ref: 22,  resale: 0.62, liq: 2.3,  line: 260000, vol: 0.030, note: 'Taglio e saldatura, ospedali.' },
+  { id: 'n2',  name: 'Azoto',           ref: 24,  resale: 0.62, liq: 2.1,  line: 60000,  vol: 0.030, note: 'Alimentare, laboratori.' },
+  { id: 'ar',  name: 'Argon e miscele', ref: 46,  resale: 0.64, liq: 10.5, line: 300000, vol: 0.060, note: 'Il gas delle saldature. Prezzo nervoso.' },
+  { id: 'co2', name: 'CO₂',             ref: 38,  resale: 0.63, liq: 6.5,  line: 65000,  vol: 0.050, note: 'Bevande e alimentare. D\'estate a volte manca.' },
+  { id: 'ac',  name: 'Acetilene',       ref: 78,  resale: 0.66, liq: null, line: 0,      vol: 0.020, note: 'Mercato in calo, margine alto. Solo rivendita.' },
+  { id: 'he',  name: 'Elio',            ref: 185, resale: 0.74, liq: null, line: 0,      vol: 0.090, note: 'Laboratori. Raro e carissimo. Solo rivendita.' }
+];
+const GMAP = {}; GASES.forEach(g => GMAP[g.id] = g);
+const FLAT = [1,1,1,1,1,1,0.95,0.6,1,1,1,0.85];
+const SEGS = [
+  { id: 'off', name: 'Officine e carpenterie', base: 2600, mix: { ar: 0.45, o2: 0.30, ac: 0.10, co2: 0.10, n2: 0.05 }, kap: 3.2, stick: 0.06, rot: 2.2, dso: 75,  bad: 0.0018, pm: 1,    grow: -0.005, season: FLAT, desc: 'Tante piccole aziende. Guardano il prezzo, pagano tardi, qualcuna non paga.' },
+  { id: 'ali', name: 'Alimentare e bevande',   base: 900,  mix: { co2: 0.60, n2: 0.35, o2: 0.05 }, kap: 2.4, stick: 0.05, rot: 1.5, dso: 60,  bad: 0.0006, pm: 1.05, grow: 0.02,  cert: 'food', season: [0.85,0.85,0.95,1,1.1,1.25,1.35,1.3,1.05,0.95,0.9,1], desc: 'Vogliono consegne puntuali e la certificazione alimentare. Picco d\'estate.' },
+  { id: 'san', name: 'Sanità',                 base: 1100, mix: { o2: 0.95, n2: 0.05 }, kap: 1.6, stick: 0.03, rot: 1.2, dso: 150, bad: 0.0001, pm: 1.7,  grow: 0.025, cert: 'farma', season: [1.2,1.15,1.05,1,0.95,0.9,0.85,0.85,0.95,1,1.05,1.15], desc: 'Ossigeno medicinale: prezzi alti, serve l\'officina farmaceutica. Paga a 150 giorni.' },
+  { id: 'lab', name: 'Laboratori e università', base: 260, mix: { n2: 0.40, he: 0.30, ar: 0.20, o2: 0.10 }, kap: 1.4, stick: 0.04, rot: 3.0, dso: 60,  bad: 0.0003, pm: 1.35, grow: 0.015, soft: 'lab', season: [1,1,1,1,1,0.95,0.8,0.5,1,1,1,0.9], desc: 'Volumi piccoli, margini alti. Senza laboratorio accreditato ti scelgono poco.' }
+];
+const SMAP = {}; SEGS.forEach(s => SMAP[s.id] = s);
+const ZONES = [
+  { id: 'bas', name: 'Bassano',        x: 62,  y: 15,  w: 0.8, mul: { off: 1.4 } },
+  { id: 'vic', name: 'Vicenza',        x: 46,  y: 44,  w: 1.3, mul: { off: 1.4 } },
+  { id: 'pad', name: 'Padova',         x: 78,  y: 62,  w: 1.5, mul: { san: 1.5, lab: 2.2 } },
+  { id: 'tre', name: 'Treviso',        x: 104, y: 28,  w: 1.4, mul: { ali: 1.2 } },
+  { id: 'ven', name: 'Venezia-Mestre', x: 114, y: 52,  w: 1.5, mul: { off: 1.2, san: 1.2 } },
+  { id: 'ver', name: 'Verona',         x: 2,   y: 60,  w: 1.7, mul: { ali: 1.7 } },
+  { id: 'bel', name: 'Belluno',        x: 98,  y: -30, w: 0.4, mul: { off: 0.9, lab: 0.4 } }
+];
+const ZMAP = {}; ZONES.forEach(z => ZMAP[z.id] = z);
+const COMPS = [
+  { id: 'nord', name: 'AriaNord',      tag: 'Multinazionale',        p: 1.04, floor: 0.86, str: { bas: 0.9, vic: 1.1, pad: 1.2, tre: 1.1, ven: 1.4, ver: 1.3, bel: 0.8 }, seg: { off: 0.8, ali: 1.0, san: 1.6, lab: 1.3 } },
+  { id: 'tri',  name: 'Gas Triveneto', tag: 'Regionale',             p: 1.00, floor: 0.84, str: { bas: 1.0, vic: 1.0, pad: 1.0, tre: 1.1, ven: 0.9, ver: 0.7, bel: 1.0 }, seg: { off: 1.2, ali: 1.1, san: 0.8, lab: 0.7 } },
+  { id: 'low',  name: 'OssiSconto',    tag: 'Locale a basso prezzo', p: 0.88, floor: 0.77, str: { bas: 0.6, vic: 0.8, pad: 0.7, tre: 0.3, ven: 0.3, ver: 0.9, bel: 0.1 }, seg: { off: 1.4, ali: 0.6, san: 0, lab: 0.2 } }
+];
+/* I clienti dell'officina: altre aziende del gas che ti mandano bombole da collaudare e ti ordinano pacchi. */
+const ACCTS = [
+  { id: 'bor', name: 'Gruppo Borea',  note: 'È anche il tuo fornitore di gas.',        test: 9000,  pack: 120, rev: 240, t0: 0.35, p0: 0.15, kap: 2.2, dso: 60, supplier: true },
+  { id: 'ari', name: 'AriaNord',      note: 'Multinazionale. Compra pacchi, collauda altrove.', test: 14000, pack: 180, rev: 300, t0: 0.02, p0: 0.06, kap: 3.5, dso: 90, comp: 'nord' },
+  { id: 'tri', name: 'Gas Triveneto', note: 'Regionale. Concorrente nella distribuzione.', test: 6000, pack: 50, rev: 100, t0: 0.12, p0: 0.075, kap: 2.6, dso: 60, comp: 'tri' },
+  { id: 'alp', name: 'Alpigas',       note: 'Rivenditore di montagna.',                test: 2500,  pack: 16, rev: 40,  t0: 0.25, p0: 0.125, kap: 2.0, dso: 45 },
+  { id: 'lag', name: 'Lagunagas',     note: 'Rivenditore della costa.',                test: 3000,  pack: 20, rev: 50,  t0: 0.15, p0: 0.075, kap: 2.4, dso: 60 },
+  { id: 'cri', name: 'Criomed',       note: 'Gas medicali. Cresce ogni anno.',         test: 2000,  pack: 24, rev: 30,  t0: 0.25, p0: 0.10, kap: 1.8, dso: 60, grow: 0.12 }
+];
+const AMAP = {}; ACCTS.forEach(a => AMAP[a.id] = a);
+const UPG = {
+  banco:   { name: 'Banco di collaudo automatico', cost: 85000,  desc: 'Prova idraulica automatica: +25% di bombole per operaio, e i clienti ti affidano più collaudi.' },
+  vernice: { name: 'Linea di verniciatura',        cost: 140000, desc: 'Vernicia e asciuga da sola: +20% di bombole per operaio, e le bombole escono come nuove: più clienti.' },
+  soft:    { name: 'Gestionale e lettori barcode', cost: 25000,  desc: 'Niente più dati scritti a mano: +12% di bombole per operaio.' },
+  linea:   { name: 'Linea di collaudo automatica', cost: 420000, need: 1, desc: 'Come i grandi centri di collaudo: le bombole passano da sole tra prova, sabbiatura e verniciatura. Raddoppia le bombole per operaio e convince i clienti grossi. Serve almeno il capannone medio.' },
+  telai:   { name: 'Reparto telai e saldatura',    cost: 200000, desc: 'Costruisci i telai dei pacchi in casa: materiali −900 € a pacco, +30% di capacità e molti più ordini.' }
+};
+const CERTS = {
+  iso:   { name: 'ISO 9001',                  cost: 9000,   fee: 250,  desc: 'Reputazione +5 e più credibilità nelle gare.' },
+  food:  { name: 'Certificazione alimentare', cost: 22000,  fee: 500,  desc: 'Obbligatoria per vendere a industrie alimentari e bevande.' },
+  lab:   { name: 'Laboratorio accreditato',   cost: 55000,  fee: 1200, desc: 'Miscele certificate: i laboratori ti scelgono più del doppio.' },
+  farma: { name: 'Officina farmaceutica',     cost: 110000, fee: 2800, desc: 'Obbligatoria per l\'ossigeno medicinale. Apre il mercato della sanità.' }
+};
+const EXECS = {
+  dc:   { name: 'Direttore commerciale',          salary: 6500, cap: 3,   desc: 'Venditori più efficaci del 20%, rapporti migliori con i clienti dell\'officina, più gare vinte.' },
+  capo: { name: 'Capo officina',                  salary: 4200, cap: 3,   desc: 'Organizza collaudo e pacchi: +12% di produttività e meno errori.' },
+  cfo:  { name: 'Direttore finanziario',          salary: 5200, cap: 1.5, desc: 'Tassi più bassi, incassi più rapidi del 12%, meno crediti persi.' },
+  rspp: { name: 'Responsabile sicurezza e qualità', salary: 3800, cap: 1, desc: 'Incidenti e multe molto più rari. Reputazione +4.' }
+};
+const BANKS = [
+  { id: 'terr', name: 'Banca del Territorio', spread: 0.026, mult: 3.0, minRating: 25, appetite: 0.90, terms: [12, 36, 60, 84],  note: 'Cooperativa locale. Prudente, tassi medi.' },
+  { id: 'naz',  name: 'Banca Nazionale',      spread: 0.019, mult: 3.8, minRating: 45, appetite: 0.80, terms: [36, 60, 84, 120], note: 'Tassi migliori, ma vuole un\'azienda solida.' },
+  { id: 'fin',  name: 'Fondo Impresa Rapido', spread: 0.055, mult: 2.0, minRating: 12, appetite: 1.00, terms: [12, 24, 36],      note: 'Accetta quasi tutti, ma costa molto.' }
+];
+const BANK_MAP = { mut: { id: 'mut', name: 'Mutuo ipotecario' } }; BANKS.forEach(b => BANK_MAP[b.id] = b);
+const DIFFS = {
+  facile:     { label: 'Facile',     cash: 180000, shock: 0.7,  infl: 0.018, costMul: 0.96, react: 0.7, rateAdd: -0.005 },
+  realistico: { label: 'Realistico', cash: 120000, shock: 1.0,  infl: 0.024, costMul: 1.0,  react: 1.0, rateAdd: 0 },
+  spietato:   { label: 'Spietato',   cash: 80000,  shock: 1.3,  infl: 0.028, costMul: 1.05, react: 1.5, rateAdd: 0.01 }
+};
+
+/* ---------- utilità ---------- */
+function rnd(S) { S.rs = (S.rs + 0x6D2B79F5) | 0; let t = S.rs; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }
+function gauss(S) { let u = 0; while (u === 0) u = rnd(S); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * rnd(S)); }
+function poisson(S, lam) { if (lam <= 0) return 0; if (lam > 30) return Math.max(0, Math.round(lam + Math.sqrt(lam) * gauss(S))); const L = Math.exp(-lam); let k = 0, p = 1; do { k++; p *= rnd(S); } while (p > L); return k - 1; }
+const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
+const r2 = x => Math.round(x * 100) / 100;
+const sum = (arr, f) => arr.reduce((a, x) => a + f(x), 0);
+function addLog(S, kind, txt) { S.log.push({ t: S.t, kind, txt }); if (S.log.length > 240) S.log.shift(); }
+function monthName(t) { return MESI[t % 12] + ' ' + (START_YEAR + Math.floor(t / 12)); }
+function fmtE(n) { return Math.round(n).toLocaleString('it-IT', { useGrouping: 'always' }) + ' €'; }
+function fmtN(n) { return Math.round(n).toLocaleString('it-IT', { useGrouping: 'always' }); }
+function dk(S) { return DIFFS[S.diff] || DIFFS.realistico; }
+function ok(msg) { return { ok: true, msg: msg || '' }; }
+function no(msg) { return { ok: false, msg }; }
+function dist(a, b) { const A = ZMAP[a], B = ZMAP[b]; return a === b ? 15 : 1.25 * Math.hypot(A.x - B.x, A.y - B.y); }
+function newFy() { return { revGas: 0, revRent: 0, revTest: 0, revPack: 0, gas: 0, mat: 0, staff: 0, logi: 0, fixed: 0, bad: 0, other: 0, ebitda: 0, dep: 0, interest: 0, tax: 0, oneoff: 0, capex: 0, sales: 0, loansIn: 0, loansOut: 0, equityIn: 0, divOut: 0, dAR: 0, dAP: 0, dAdv: 0 }; }
+function payCapex(S, amt) { S.player.cash -= amt; S.fy.capex += amt; }
+function payOneoff(S, amt) { S.player.cash -= amt; S.player.ytd.ebt -= amt; S.fy.oneoff += amt; }
+function getSale(S, amt) { S.player.cash += amt; S.fy.sales += amt; }
+function addAsset(S, amt, life) { S.player.assets.push({ b: amt, d: amt / life }); }
+const infl = S => S.macro.infl;
+const cm = S => S.macro.infl * dk(S).costMul;
+
+/* ---------- prezzi e costi dei gas ---------- */
+function refPrice(S, g) { return GMAP[g].ref * infl(S) * (0.75 + 0.25 * S.gidx[g].v); }
+function unitCost(S, g) {
+  const G = GMAP[g], P = S.player, prem = S.short[g] && S.short[g].pay ? 1.5 : 1;
+  if (P.lines[g]) return (G.liq * infl(S) * S.gidx[g].v * prem + 2.4 * cm(S));
+  return G.ref * infl(S) * G.resale * (0.6 + 0.4 * S.gidx[g].v) * P.supF * prem + 1.2 * cm(S);
+}
+function market(S, z, s) {
+  const Z = ZMAP[z], G = SMAP[s], d = s === 'off' ? S.macro.dem : s === 'ali' ? 1 + (S.macro.dem - 1) * 0.3 : 1;
+  return G.base * Z.w * ((Z.mul && Z.mul[s]) || 1) * G.season[S.t % 12] * d * Math.pow(1 + G.grow, S.t / 12);
+}
+function nearestDepot(S, z) { let best = null; for (const d of S.player.depots) { const k = dist(d.zone, z); if (!best || k < best.d) best = { dep: d, d: k }; } return best; }
+function truckCap(d) { return 1470 * 6 / (6 + d / 20); }
+function pIndex(S, s) { const m = SMAP[s].mix; let p = 0; for (const g in m) p += m[g] * S.player.price[g]; return p; }
+function mgmt(S) {
+  const P = S.player;
+  const load = P.depots.length + 0.3 * sum(Object.keys(P.reps), z => P.reps[z]) + 0.12 * (P.wc + P.wp) + 0.15 * sum(P.depots, d => d.trucks) + 0.5 * Object.keys(P.lines).filter(k => P.lines[k]).length;
+  let cap = 5; for (const k in EXECS) if (P.execs[k]) cap += EXECS[k].cap;
+  return { load, cap, over: load > cap ? (load - cap) / load : 0 };
+}
+/* Mercato saturo: i clienti hanno già un fornitore e cambiano poco. Il peso dei concorrenti vale quasi il doppio del tuo. */
+function compW(S, z, s) { const G = SMAP[s]; let w = 0.35; for (const c of COMPS) w += 1.7 * c.str[z] * c.seg[s] * Math.exp(-G.kap * Math.log(c.p * S.comps[c.id].adj[z])); return w; }
+/* full = la quota che la tua offerta regge se i clienti ti conoscono; tg = quella che raggiungi con i venditori che hai. */
+function shareParts(S, z, s) {
+  const P = S.player, G = SMAP[s];
+  if (G.cert && !P.certs[G.cert]) return { tg: 0, full: 0 };
+  const nd = nearestDepot(S, z);
+  let U = -G.kap * Math.log(pIndex(S, s)) + 3 * (P.sl[z] - 0.95) + 0.008 * (P.rep - 60) - (s === 'off' ? 0.5 : 0.2) * Math.log(P.fee / 5.5) - Math.max(0, nd.d - 45) * 0.012;
+  if (G.soft && !P.certs[G.soft]) U -= 0.9;
+  if (nd.dep.zone === z) U += 0.45;   // chi ha il deposito in zona è "di casa"
+  const reps = (P.reps[z] || 0) * (P.execs.dc ? 1.2 : 1) + (nd.dep.zone === z ? 0.25 : 0);
+  const cover = 1 - Math.exp(-1.5 * reps / ZMAP[z].w);
+  const w = Math.exp(U), full = w / (w + compW(S, z, s));
+  return { tg: cover * full, full };
+}
+function targetShare(S, z, s) { return shareParts(S, z, s).tg; }
+/* I clienti nuovi arrivano con i venditori. Quelli che hai già restano finché l'offerta regge: senza venditori li perdi piano (chiusure, concorrenti che bussano). */
+function shareStep(cur, sp, stick) {
+  if (sp.tg >= cur) return cur + stick * (sp.tg - cur);
+  return cur - stick * (Math.max(0, cur - sp.full) + 0.25 * (Math.min(cur, sp.full) - sp.tg));
+}
+function shareIn(S, z, s, months) { const sp = shareParts(S, z, s), st = SMAP[s].stick; let c = S.player.share[z][s]; for (let i = 0; i < months; i++) c = shareStep(c, sp, st); return Math.max(0, c); }
+
+/* ---------- piano del mese: cosa vendi, cosa ti serve, dove sei corto ---------- */
+function distPlan(S) {
+  const P = S.player, rows = [];
+  for (const z of ZONES) for (const s of SEGS) { const sh = P.share[z.id][s.id]; if (sh > 0.0005) rows.push({ z: z.id, s: s.id, want: market(S, z.id, s.id) * sh }); }
+  for (const c of P.contracts) rows.push({ z: c.zone, s: c.seg, want: c.vol * SMAP[c.seg].season[S.t % 12], pIdx: c.pIdx, contract: c });
+  let outNeed = 0, wantTot = 0;
+  rows.forEach(r => { outNeed += r.want * SMAP[r.s].rot; wantTot += r.want; });
+  const fleetAvail = Math.max(0, P.fleet.n - P.q.own), need = Math.ceil(outNeed * 1.08);
+  const fFleet = need > 0 ? Math.min(1, fleetAvail / need) : 1;
+  const deps = P.depots.map(d => ({ id: d.id, zone: d.zone, trucks: d.trucks, load: 0, vol: 0, f: 1, ext: 0, extCost: 0, km: 0 }));
+  const dmap = {}; deps.forEach(d => dmap[d.id] = d);
+  rows.forEach(r => { const nd = nearestDepot(S, r.z); r.dep = nd.dep.id; r.d = nd.d; r.w2 = r.want * fFleet; dmap[r.dep].load += r.w2 / truckCap(r.d); dmap[r.dep].vol += r.w2; });
+  deps.forEach(d => { if (d.load > d.trucks + 1e-9) { if (P.outsource) d.ext = d.load > 0 ? (d.load - d.trucks) / d.load : 0; else d.f = d.load > 0 ? d.trucks / d.load : 1; } });
+  const delG = {}; GASES.forEach(g => delG[g.id] = 0);
+  const rev = { off: 0, ali: 0, san: 0, lab: 0 }, zw = {}, zd = {};
+  let delTot = 0, outAct = 0, fuel = 0, extCost = 0;
+  rows.forEach(r => {
+    const D = dmap[r.dep], G = SMAP[r.s]; let del = 0, rv = 0;
+    for (const g in G.mix) { const av = S.short[g] && !S.short[g].pay ? S.short[g].f : 1; const q = r.w2 * D.f * G.mix[g] * av; del += q; delG[g] += q; rv += q * (r.pIdx || P.price[g]) * refPrice(S, g) * G.pm; }
+    r.del = del; r.rev = rv; rev[r.s] += rv; delTot += del; outAct += del * G.rot;
+    zw[r.z] = (zw[r.z] || 0) + r.want; zd[r.z] = (zd[r.z] || 0) + del;
+    const own = del * (1 - D.ext), ext = del * D.ext;
+    fuel += own / 70 * (2 * r.d + 25) * 0.8 * S.macro.energy * cm(S);
+    extCost += ext * 7.5 * (1 + r.d / 100) * cm(S);
+  });
+  let gasCost = 0, filled = 0; for (const g in delG) { gasCost += delG[g] * unitCost(S, g); if (P.lines[g]) filled += delG[g]; }
+  const rental = outAct * P.fee * infl(S);
+  return { rows, wantTot, delTot, outNeed: need, fleetAvail, fFleet, deps, delG, rev, rental, gasCost, filled, fuel, extCost, zw, zd, outAct };
+}
+function testCap(S) {
+  const P = S.player, U = P.up;
+  let prod = TEST_PROD * (1 + (U.banco ? 0.25 : 0) + (U.vernice ? 0.20 : 0) + (U.soft ? 0.12 : 0) + (U.linea ? 1 : 0) + (P.execs.capo ? 0.12 : 0));
+  const q = P.q, tot = q.own + q.small + sum(ACCTS, a => q.ext[a.id]);
+  prod *= 1 - 0.25 * (tot > 0 ? q.small / tot : 0) - 0.3 * mgmt(S).over;
+  if (P.mods.prod) prod *= P.mods.prod.f;
+  if (P.barcode === 'manuale') prod *= 0.95;
+  return { prod, cap: P.wc * prod, queue: tot };
+}
+function packCap(S) { const P = S.player; return P.wp * PACK_PROD * (P.up.telai ? 1.3 : 1) * (P.execs.capo ? 1.12 : 1) * (1 - 0.3 * mgmt(S).over) * (P.mods.prod ? P.mods.prod.f : 1); }
+function outlook(S) {
+  const pl = distPlan(S), tc = testCap(S), P = S.player;
+  let tdem = P.fleet.n / 120; ACCTS.forEach(a => { tdem += a.test * acctGrow(S, a) / 12 * S.accts[a.id].ts; });
+  let pdem = 0; ACCTS.forEach(a => { pdem += (a.pack + a.rev * 0.25) / 12 * S.accts[a.id].ps * acctGrow(S, a); });
+  return { plan: pl, test: tc, testDemand: tdem, packCap: packCap(S), packDemand: pdem, mg: mgmt(S) };
+}
+function acctGrow(S, a) { return Math.pow(1 + (a.grow || 0), S.t / 12); }
+
+/* ---------- creazione partita ---------- */
+function createGame(opts) {
+  opts = opts || {};
+  const key = DIFFS[opts.difficulty] ? opts.difficulty : 'realistico', diff = DIFFS[key];
+  const S = { v: 1, game: 'gas', rs: ((opts.seed != null ? opts.seed : (Date.now() ^ 0x5bd1e995)) >>> 0), t: 0, diff: key, over: null, ended10: false, nextId: 1,
+    macro: { rate: 0.024, prop: 1, infl: 1, dem: 1, energy: 1, steel: 1, rec: 0, boost: 0 }, gidx: {}, short: {}, log: [], hist: [], fy: newFy(), years: [], pending: null, nextEv: 3, lastEv: '', comps: {}, accts: {} };
+  GASES.forEach(g => S.gidx[g.id] = { v: 1, y: 0, hist: [1] });
+  COMPS.forEach(c => { S.comps[c.id] = { adj: {} }; ZONES.forEach(z => S.comps[c.id].adj[z.id] = 1); });
+  ACCTS.forEach(a => S.accts[a.id] = { ts: a.t0, ps: a.p0, rel: 1, dso: a.dso, trT: 0, trP: 0 });
+  const P = S.player = {
+    name: opts.name || 'La tua azienda', cash: diff.cash, capital: diff.cash, loans: [], own: 1, lastRound: -99, raised: 0,
+    price: {}, fee: 5.5, testIdx: 1, packIdx: 1, smallOk: true, ownTestOut: false, outsource: false, supF: 1, barcode: '',
+    reps: {}, depots: [{ id: 'd1', zone: 'bas', trucks: 1, home: true }], sede: { size: 0, own: null, pv: 0, rentF: 1 }, lines: {}, fleet: { n: 2600, book: 190000, dep: 190000 / 120 },
+    share: {}, sl: {}, rep: 60, certs: {}, up: {}, wc: 3, wp: 1, q: { own: 0, small: 0, ext: {} }, qp: {}, execs: {}, mods: {},
+    AR: { off: 0, ali: 0, san: 0, lab: 0, srv: 0 }, AP: 0, adv: { on: false, pct: 0.6, bal: 0 }, contracts: [], assets: [],
+    taxLoss: 0, ytd: { ebt: 0 }, bankReq: {}, warn: 0, taxPaid: 0, lost: 0, tested: 0, packs: 0
+  };
+  GASES.forEach(g => P.price[g.id] = 1);
+  ZONES.forEach(z => { P.reps[z.id] = 0; P.sl[z.id] = 0.97; P.share[z.id] = {}; SEGS.forEach(s => P.share[z.id][s.id] = 0); });
+  ACCTS.forEach(a => { P.q.ext[a.id] = 0; P.qp[a.id] = { nw: 0, rv: 0 }; });
+  P.reps.bas = 1; P.share.bas.off = 0.24; P.share.vic.off = 0.07; P.share.pad.off = 0.025; P.share.tre.off = 0.03; P.share.bas.lab = 0.05;
+  addAsset(S, 60000, 120);   // attrezzature dell'officina già in casa
+  // crediti e debiti di partenza: l'azienda era già in attività
+  P.AR.off = 80000; P.AR.srv = 67000; P.AP = 26000;
+  addLog(S, 'info', 'Benvenuto! Gennaio 2027. Hai rilevato una piccola azienda a Bassano: rivendita di gas, 2.600 bombole, un camion e un\'officina di collaudo con 4 operai.');
+  return S;
+}
+
+/* ---------- immobili ---------- */
+function migrate(S) { const P = S.player; if (!P.sede) P.sede = { size: 0, own: null, pv: 0, rentF: 1 }; if (S.macro.prop == null) S.macro.prop = 1; return S; }
+function siteIds(S) { return ['sede'].concat(S.player.depots.filter(d => !d.home).map(d => d.id)); }
+function siteObj(S, id) { return id === 'sede' ? S.player.sede : S.player.depots.find(d => d.id === id && !d.home); }
+function siteMq(S, id) { return id === 'sede' ? SITES[S.player.sede.size].mq : DEPOT_MQ; }
+function siteName(S, id) { if (id === 'sede') return 'Sede di Bassano'; const d = siteObj(S, id); return d ? 'Deposito di ' + ZMAP[d.zone].name : ''; }
+function siteRent(S, id) { return siteMq(S, id) * RENT_MQ / 12 * infl(S) * Math.sqrt(S.macro.prop || 1) * (id === 'sede' ? (S.player.sede.rentF || 1) : 1); }
+function siteValue(S, id) { return siteMq(S, id) * PRICE_MQ * infl(S) * (S.macro.prop || 1); }
+function ownedIds(S) { return siteIds(S).filter(id => { const o = siteObj(S, id); return o && o.own; }); }
+function propsValue(S) { return sum(ownedIds(S), id => siteValue(S, id)); }
+function notionalRent(S) { return sum(ownedIds(S), id => siteRent(S, id)); }   // l'affitto che pagheresti per gli immobili tuoi, al mese
+function pvSaving(S) { return (S.player.sede.pv || 0) * PV_SAVE * infl(S) * S.macro.energy; }
+/* Costo mensile dei luoghi: affitto (o tasse e manutenzione se sono tuoi) più le spese di gestione, meno il fotovoltaico. */
+function sitesCost(S) {
+  let c = 0; for (const id of siteIds(S)) { const o = siteObj(S, id); c += (o.own ? siteValue(S, id) * 0.012 / 12 : siteRent(S, id)) + SITE_RUN[id === 'sede' ? 'sede' : 'depot'] * cm(S); }
+  return c - pvSaving(S);
+}
+function propQuote(S, id) {
+  const o = siteObj(S, id); if (!o) return null; const P = S.player, v = Math.round(siteValue(S, id)), cost = Math.round(v * 1.04), m = metrics(S);
+  const mort = Math.floor(v * 0.7 / 1000) * 1000, rate = Math.max(0.015, S.macro.rate + 0.016 + dk(S).rateAdd - (P.execs.cfo ? 0.004 : 0));
+  const loan = P.loans.find(l => l.prop === id);
+  return { id, name: siteName(S, id), mq: siteMq(S, id), own: !!o.own, value: v, cost, rent: siteRent(S, id), upkeep: v * 0.012 / 12, mort, rate, payment: annuity(mort, rate, 180), okMort: m.rating >= 30, down: cost - mort, sale: Math.round(v * 0.95), debt: loan ? loan.balance : 0 };
+}
+function buyProperty(S, id, withMort, disc) {
+  const o = siteObj(S, id), P = S.player; if (!o) return no('Immobile non trovato.'); if (o.own) return no('È già tuo.');
+  const q = propQuote(S, id), cost = Math.round(q.cost * (disc || 1)); let loan = 0;
+  if (withMort) { if (!q.okMort) return no('La banca non concede il mutuo: il tuo rating è troppo basso (serve almeno 30).'); loan = q.mort; }
+  if (P.cash < cost - loan) return no('Servono ' + fmtE(cost - loan) + ' in cassa' + (withMort ? ', oltre al mutuo.' : '.'));
+  if (loan) { P.cash += loan; S.fy.loansIn += loan; P.loans.push({ id: 'l' + (++S.nextId), bank: 'mut', principal: loan, balance: loan, rate: q.rate, term: 180, remaining: 180, payment: q.payment, prop: id }); }
+  payCapex(S, cost); o.own = { cost, b: cost * 0.7, d: cost * 0.7 * 0.03 / 12 }; if (id === 'sede') P.sede.rentF = 1;   // il terreno (30%) non si ammortizza
+  addLog(S, 'good', 'Comprato: ' + q.name + ' per ' + fmtE(cost) + (loan ? ', con un mutuo di ' + fmtE(loan) + ' in 15 anni.' : '.'));
+  return ok('Comprato. Niente più affitto.');
+}
+function sellProperty(S, id) {
+  const o = siteObj(S, id), P = S.player; if (!o || !o.own) return no('Non è tuo.');
+  const q = propQuote(S, id); getSale(S, q.sale); P.ytd.ebt += q.sale - (o.own.b + 0.3 * o.own.cost);
+  P.loans.filter(l => l.prop === id).forEach(l => { P.cash -= l.balance; S.fy.loansOut += l.balance; }); P.loans = P.loans.filter(l => l.prop !== id);
+  o.own = null; if (id === 'sede') { P.sede.pv = 0; P.sede.rentF = 1; }
+  addLog(S, 'info', 'Venduto: ' + q.name + ' per ' + fmtE(q.sale) + '. Resti dentro in affitto.');
+  return ok('Venduto per ' + fmtE(q.sale) + '. Da ora paghi l\'affitto.');
+}
+function sedeQuote(S) {
+  const P = S.player, cur = P.sede.size, nx = SITES[cur + 1]; if (!nx) return null; const dm = nx.mq - SITES[cur].mq;
+  return P.sede.own ? { kind: 'amplia', size: cur + 1, name: nx.name, mq: nx.mq, workers: nx.workers, lines: nx.lines, cost: Math.round(dm * BUILD_MQ * infl(S) * (S.macro.prop || 1)) }
+    : { kind: 'trasloco', size: cur + 1, name: nx.name, mq: nx.mq, workers: nx.workers, lines: nx.lines, cost: Math.round(18000 * (cur + 2) * cm(S)), rent: nx.mq * RENT_MQ / 12 * infl(S) * Math.sqrt(S.macro.prop || 1) };
+}
+function growSede(S) {
+  const P = S.player, q = sedeQuote(S); if (!q) return no('Hai già il capannone più grande.');
+  if (P.cash < q.cost) return no('Servono ' + fmtE(q.cost) + ' in cassa.');
+  if (q.kind === 'amplia') { payCapex(S, q.cost); P.sede.own.cost += q.cost; P.sede.own.b += q.cost * 0.85; P.sede.own.d += q.cost * 0.85 * 0.03 / 12; }
+  else { payOneoff(S, q.cost); P.mods.prod = { f: 0.85, m: 2 }; P.sede.rentF = 1; }
+  P.sede.size = q.size; addLog(S, 'good', (q.kind === 'amplia' ? 'Capannone ampliato' : 'Trasloco fatto') + ': ora hai ' + fmtN(q.mq) + ' mq, posto per ' + q.workers + ' operai.');
+  return ok(q.kind === 'amplia' ? 'Ampliamento fatto.' : 'Trasloco fatto: due mesi di officina rallentata.');
+}
+function pvQuote(S) { const P = S.player, k = SITES[P.sede.size].kwp - (P.sede.pv || 0); return { kwp: k, cost: Math.round(k * PV_KWP * infl(S)), save: k * PV_SAVE * infl(S) * S.macro.energy }; }
+function buyPV(S) {
+  const P = S.player; if (!P.sede.own) return no('Il tetto non è tuo: prima compra la sede.');
+  const q = pvQuote(S); if (q.kwp <= 0) return no('Il tetto è già coperto.'); if (P.cash < q.cost) return no('Servono ' + fmtE(q.cost) + ' in cassa.');
+  payCapex(S, q.cost); addAsset(S, q.cost, 240); P.sede.pv = (P.sede.pv || 0) + q.kwp;
+  addLog(S, 'good', 'Fotovoltaico sul tetto: ' + q.kwp + ' kW. Bolletta più leggera di circa ' + fmtE(q.save) + ' al mese.');
+  return ok('Impianto installato.');
+}
+/* Quanto puoi investire senza metterti nei guai: cassa oltre la riserva, più quello che le banche ti danno tenendo le rate sotto controllo. */
+function investCap(S) {
+  const P = S.player, m = metrics(S), last = S.hist[S.hist.length - 1], costs = last ? Math.max(40000, last.rev - last.ebitda) : 90000;
+  const reserve = Math.round(1.5 * costs), free = Math.max(0, P.cash - reserve), short = Math.max(0, reserve - P.cash);
+  let bank = 0, rate = 0.06; for (const b of BANKS) { const q = bankQuote(S, b.id); if (q.p >= 0.5 && q.avail > bank && b.id !== 'fin') { bank = q.avail; rate = q.rate; } }
+  const service = sum(P.loans, l => l.payment) * 12, roomY = Math.max(0, m.e12 / 2 - service), room = roomY / 12 / annuity(1, rate, 60);
+  const loan = Math.max(0, Math.floor(Math.min(bank, room) / 1000) * 1000);
+  return { reserve, free, bank, room, loan, total: free + Math.max(0, loan - short), service, dscr: m.dscr, e12: m.e12 };
+}
+/* Elenco degli investimenti possibili con costo, guadagno stimato al mese e mesi per rientrare. */
+function investOptions(S) {
+  const P = S.player, I = infl(S), C = cm(S), o = outlook(S), pl = o.plan, out = [], last = S.hist[S.hist.length - 1];
+  const add = (key, name, cost, gain, note, lock) => out.push({ key, name, cost: Math.round(cost), gain, pay: gain > 0 ? cost / gain : Infinity, note: note || '', lock: lock || '' });
+  const nLines = Object.keys(P.lines).filter(k => P.lines[k]).length;
+  for (const g of GASES) if (g.line && !P.lines[g.id]) { const q = pl.delG[g.id] || 0, sv = q * (unitCost(S, g.id) - (g.liq * I * S.gidx[g.id].v + 2.4 * C)) - (g.line > 100000 ? 3500 : 1800) * C - Math.ceil(q / 2600) * SAL.worker * C * 0.5;
+    add('line:' + g.id, 'Linea di riempimento: ' + g.name, lineCost(S, g.id), sv, sv > 0 ? 'Borea ti manderà meno lavoro in officina.' : 'Con le bombole che vendi oggi non conviene: servono più clienti di questo gas.', nLines >= SITES[P.sede.size].lines ? 'Non c\'è posto: serve un capannone più grande.' : ''); }
+  const tests = last ? last.tests : 500, tc = testCap(S), lab = SAL.worker * C / Math.max(1, tc.prod), base = tc.prod / (1 + (P.up.banco ? 0.25 : 0) + (P.up.vernice ? 0.2 : 0) + (P.up.soft ? 0.12 : 0) + (P.up.linea ? 1 : 0) + (P.execs.capo ? 0.12 : 0));
+  const upGain = { banco: 0.25, vernice: 0.2, soft: 0.12, linea: 1 };
+  for (const k in upGain) if (!P.up[k]) { const np = tc.prod + base * upGain[k]; add('upg:' + k, UPG[k].name, UPG[k].cost * I, tests * lab * (1 - tc.prod / np), 'Risparmio di manodopera sui collaudi di oggi; in più arrivano più clienti.', UPG[k].need && P.sede.size < UPG[k].need ? 'Serve almeno il capannone medio.' : ''); }
+  if (!P.up.telai) add('upg:telai', UPG.telai.name, UPG.telai.cost * I, (last ? last.packs : 3) * 900 * I, 'Risparmio sui materiali dei pacchi di oggi; in più arrivano più ordini.');
+  for (const id of siteIds(S)) { const q = propQuote(S, id); if (!q.own) add('prop:' + id, 'Compra: ' + q.name, q.cost, q.rent - q.upkeep, 'Con il mutuo ti bastano ' + fmtE(q.down) + ' di tasca tua. L\'immobile resta nel valore dell\'azienda.'); }
+  if (P.sede.own) { const q = pvQuote(S); if (q.kwp > 0) add('pv', 'Fotovoltaico sul tetto (' + q.kwp + ' kW)', q.cost, q.save, 'Rende di più quando l\'energia è cara.'); }
+  else add('pv', 'Fotovoltaico sul tetto', pvQuote(S).cost, pvQuote(S).save, '', 'Il tetto non è tuo: prima compra la sede.');
+  return out.sort((a, b) => (a.lock ? 1 : 0) - (b.lock ? 1 : 0) || a.pay - b.pay);
+}
+
+/* ---------- misure ---------- */
+function debtOf(S) { return sum(S.player.loans, l => l.balance); }
+function bookOf(S) { return S.player.fleet.book + sum(S.player.assets, a => a.b); }
+function arOf(S) { const A = S.player.AR; return A.off + A.ali + A.san + A.lab + A.srv; }
+function trail(S, key) { const h = S.hist, n = Math.min(12, h.length); if (n < 3) return key === 'ebitda' ? 150000 : key === 'rev' ? 1300000 : 0; let e = 0; for (let i = h.length - n; i < h.length; i++) e += h[i][key]; return e * 12 / n; }
+function metrics(S) {
+  const P = S.player, debt = debtOf(S), props = propsValue(S), book = bookOf(S) + props, ar = arOf(S), e12 = trail(S, 'ebitda');
+  // gli immobili tuoi si contano a parte, al valore di mercato: per non contarli due volte si toglie dall'EBITDA l'affitto che non paghi
+  const ev = Math.max(EV_MULT * (e12 - trail(S, 'nr')), 0.5 * bookOf(S));
+  const value = Math.max(0, ev + props + P.cash - debt - P.adv.bal);
+  const equity = book + ar + P.cash - debt - P.AP - P.adv.bal;
+  const assets = book + ar + Math.max(0, P.cash);
+  const eqRatio = assets > 0 ? equity / assets : 0;
+  const service = sum(P.loans, l => l.payment) * 12 + Math.max(0, -P.cash) * 0.12;
+  const dscr = service > 0 ? e12 / service : (e12 > 0 ? 2.5 : 0.8);
+  let rating = 35 + 22 * clamp(eqRatio, 0, 0.6) / 0.6 + 25 * clamp(dscr - 0.8, 0, 1.7) / 1.7 + 8 * clamp(S.t / 24, 0, 1);
+  if (P.execs.cfo) rating += 10;
+  if (P.cash < 0) rating -= 15;
+  rating = clamp(Math.round(rating), 5, 95);
+  const limit = 15000 + 250 * rating + 0.03 * Math.max(0, e12) + (P.execs.cfo ? 10000 : 0);
+  const advLimit = Math.round(ar * clamp(0.45 + rating / 200, 0.45, 0.85));
+  return { debt, book, props, ar, e12, ev, value, mine: value * P.own, equity, rating, limit, dscr, advLimit, mg: mgmt(S) };
+}
+function bankQuote(S, bankId) {
+  const b = BANK_MAP[bankId], m = metrics(S), P = S.player;
+  const maxDebt = b.mult * (Math.max(m.e12, 0) + 0.10 * Math.max(m.equity, 0));
+  const avail = Math.max(0, Math.floor((maxDebt - m.debt) / 1000) * 1000);
+  const rate = Math.max(0.015, S.macro.rate + b.spread + dk(S).rateAdd + (60 - m.rating) * 0.0004 - (P.execs.cfo ? 0.006 : 0));
+  const p = clamp(0.2 + m.rating / 100 * 0.9, 0.1, 0.95) * b.appetite;
+  return { avail, rate, p: m.rating < b.minRating ? 0 : p, rating: m.rating, minRating: b.minRating, used: P.bankReq[bankId] === S.t };
+}
+
+/* ---------- azioni ---------- */
+function setPrice(S, g, idx) { if (!GMAP[g] || !isFinite(+idx)) return no('Valore non valido.'); S.player.price[g] = clamp(r2(+idx), 0.7, 1.5); return ok(); }
+function setFee(S, v) { if (!isFinite(+v)) return no('Valore non valido.'); S.player.fee = clamp(Math.round(+v * 2) / 2, 2, 10); return ok(); }
+function setIdx(S, kind, v) { if (!isFinite(+v)) return no('Valore non valido.'); S.player[kind === 'pack' ? 'packIdx' : 'testIdx'] = clamp(r2(+v), 0.7, 1.5); return ok(); }
+function setFlag(S, k, v) { if (!['smallOk', 'ownTestOut', 'outsource'].includes(k)) return no('Opzione sconosciuta.'); S.player[k] = !!v; return ok(); }
+function setReps(S, z, n) {
+  const P = S.player; if (!ZMAP[z] || !isFinite(+n)) return no('Zona non valida.');
+  n = clamp(Math.round(+n), 0, 6); const cur = P.reps[z] || 0;
+  if (n < cur) payOneoff(S, Math.round((cur - n) * SAL.rep * cm(S)));
+  P.reps[z] = n; return ok(n < cur ? 'Venditore licenziato: una mensilità di buonuscita.' : '');
+}
+function openDepot(S, z) {
+  const P = S.player; if (!ZMAP[z]) return no('Zona non valida.');
+  if (P.depots.some(d => d.zone === z)) return no('Hai già un deposito in questa zona.');
+  const c = Math.round(DEPOT_CAPEX * infl(S)); if (P.cash < c) return no('Servono ' + fmtE(c) + ' in cassa.');
+  payCapex(S, c); addAsset(S, c, 120); P.depots.push({ id: 'd' + (++S.nextId), zone: z, trucks: 0 });
+  addLog(S, 'info', 'Aperto un deposito a ' + ZMAP[z].name + '. Assegnagli almeno un camion.');
+  return ok('Deposito aperto. Costo ' + fmtE(c) + '.');
+}
+function closeDepot(S, id) {
+  const P = S.player, i = P.depots.findIndex(d => d.id === id); if (i < 0) return no('Deposito non trovato.');
+  if (P.depots[i].home) return no('La sede non si chiude.');
+  if (P.depots[i].own) return no('Il capannone è tuo: prima vendilo.');
+  payOneoff(S, Math.round((SAL.depot + P.depots[i].trucks * SAL.driver) * cm(S))); P.depots.splice(i, 1);
+  return ok('Deposito chiuso.');
+}
+function setTrucks(S, id, n) {
+  const d = S.player.depots.find(x => x.id === id); if (!d || !isFinite(+n)) return no('Deposito non trovato.');
+  n = clamp(Math.round(+n), 0, 12); if (n < d.trucks) payOneoff(S, Math.round((d.trucks - n) * SAL.driver * cm(S)));
+  d.trucks = n; return ok();
+}
+function buyCyl(S, n, used) {
+  const P = S.player; n = Math.round(+n); if (!(n > 0 && n <= 5000)) return no('Quantità da 1 a 5.000.');
+  const unit = (used ? CYL_USED : CYL_NEW) * infl(S) * S.macro.steel, c = Math.round(n * unit);
+  if (P.cash < c) return no('Servono ' + fmtE(c) + ' in cassa.');
+  payCapex(S, c); P.fleet.n += n; P.fleet.book += c; P.fleet.dep += c / (used ? 96 : 180);
+  if (used) P.q.own += Math.round(n * 0.3);   // tre usate su dieci sono da ricollaudare subito
+  return ok(fmtN(n) + ' bombole comprate per ' + fmtE(c) + '.');
+}
+function sellCyl(S, n) {
+  const P = S.player; n = Math.round(+n); if (!(n > 0)) return no('Quantità non valida.');
+  n = Math.min(n, P.fleet.n); if (!n) return no('Non hai bombole.');
+  const frac = n / P.fleet.n, cash = Math.round(n * CYL_SCRAP * infl(S)), bk = P.fleet.book * frac;
+  getSale(S, cash); P.ytd.ebt += cash - bk; P.fleet.book -= bk; P.fleet.dep *= 1 - frac; P.fleet.n -= n; P.q.own = Math.min(P.q.own, P.fleet.n);
+  return ok(fmtN(n) + ' bombole vendute per ' + fmtE(cash) + '.');
+}
+function lineCost(S, g) { return Math.round(GMAP[g].line * infl(S)); }
+function buildLine(S, g) {
+  const P = S.player, G = GMAP[g]; if (!G || !G.line) return no('Per questo gas esiste solo la rivendita.');
+  if (P.lines[g]) return no('Hai già questa linea.');
+  if (Object.keys(P.lines).filter(k => P.lines[k]).length >= SITES[P.sede.size].lines) return no('Non c\'è posto per un\'altra linea: serve un capannone più grande.');
+  const c = lineCost(S, g); if (P.cash < c) return no('Servono ' + fmtE(c) + ' in cassa.');
+  payCapex(S, c); addAsset(S, c, 180); P.lines[g] = true;
+  if (!P.altSup) { S.accts.bor.rel = Math.max(0.3, S.accts.bor.rel - 0.08); }
+  addLog(S, 'good', 'Nuova linea di riempimento: ' + G.name + '. Ora compri il liquido e riempi in casa.');
+  return ok('Linea costruita. Costo ' + fmtE(c) + '.');
+}
+function buyUpgrade(S, k) {
+  const P = S.player, U = UPG[k]; if (!U) return no('Investimento sconosciuto.'); if (P.up[k]) return no('Ce l\'hai già.');
+  if (U.need && P.sede.size < U.need) return no('Non ci sta: serve almeno il capannone medio.');
+  const c = Math.round(U.cost * infl(S)); if (P.cash < c) return no('Servono ' + fmtE(c) + ' in cassa.');
+  payCapex(S, c); addAsset(S, c, 120); P.up[k] = true; if (k === 'soft' && P.barcode === 'manuale') P.barcode = 'auto';
+  addLog(S, 'good', 'Investimento fatto: ' + U.name + '.');
+  return ok('Fatto. Costo ' + fmtE(c) + '.');
+}
+function buyCert(S, k) {
+  const P = S.player, C = CERTS[k]; if (!C) return no('Certificazione sconosciuta.'); if (P.certs[k]) return no('Ce l\'hai già.');
+  const c = Math.round(C.cost * infl(S)); if (P.cash < c) return no('Servono ' + fmtE(c) + ' in cassa.');
+  payOneoff(S, c); P.certs[k] = true; if (k === 'iso') P.rep = Math.min(100, P.rep + 5);
+  addLog(S, 'good', 'Ottenuta: ' + C.name + '.');
+  return ok('Certificazione ottenuta. Costo ' + fmtE(c) + '.');
+}
+function dropCert(S, k) { const P = S.player; if (!P.certs[k]) return no('Non ce l\'hai.'); P.certs[k] = false; return ok('Certificazione lasciata scadere.'); }
+function setWorkers(S, kind, n) {
+  const P = S.player, key = kind === 'pack' ? 'wp' : 'wc'; if (!isFinite(+n)) return no('Valore non valido.');
+  n = clamp(Math.round(+n), 0, 40); const cur = P[key], room = SITES[P.sede.size].workers;
+  if (n > cur && P.wc + P.wp - cur + n > room) return no('Non c\'è posto: questo capannone tiene ' + room + ' operai. Ingrandisci la sede.');
+  if (n < cur) payOneoff(S, Math.round((cur - n) * SAL.worker * cm(S)));
+  P[key] = n; return ok(n < cur ? 'Operai licenziati: una mensilità di buonuscita a testa.' : '');
+}
+function setExec(S, k, on) { if (!EXECS[k]) return no('Ruolo sconosciuto.'); const P = S.player; if (P.execs[k] && !on) payOneoff(S, Math.round(EXECS[k].salary * cm(S))); P.execs[k] = !!on; if (k === 'rspp') P.rep = clamp(P.rep + (on ? 4 : -4), 0, 100); addLog(S, 'info', (on ? 'Assunto: ' : 'Licenziato: ') + EXECS[k].name + '.'); return ok(); }
+function setAdv(S, on, pct) { const A = S.player.adv; A.on = !!on; if (pct != null && isFinite(+pct)) A.pct = clamp(+pct, 0.1, 0.85); return ok(); }
+function annuity(amount, rate, term) { const r = rate / 12; return amount * r / (1 - Math.pow(1 + r, -term)); }
+function requestLoan(S, bankId, amount, term) {
+  const P = S.player, b = BANK_MAP[bankId]; if (!b) return no('Banca non valida.');
+  amount = Math.round(+amount / 1000) * 1000; term = Math.round(+term);
+  if (!(amount >= 5000)) return no('Importo minimo 5.000 €.');
+  if (!b.terms.includes(term)) return no('Durata non offerta da questa banca.');
+  const q = bankQuote(S, bankId);
+  if (q.used) return no(b.name + ' ha già risposto a una tua richiesta questo mese.');
+  if (amount > q.avail) return no('Importo troppo alto per questa banca: il massimo oggi è ' + fmtE(q.avail) + '.');
+  P.bankReq[bankId] = S.t;
+  if (q.rating < b.minRating) return no('Rifiutato: il tuo rating (' + q.rating + ') è sotto il minimo della banca (' + b.minRating + ').');
+  if (rnd(S) > q.p) return no('Rifiutato dalla commissione crediti. Riprova il mese prossimo o prova un\'altra banca.');
+  const payment = annuity(amount, q.rate, term);
+  P.loans.push({ id: 'l' + (++S.nextId), bank: bankId, principal: amount, balance: amount, rate: q.rate, term, remaining: term, payment });
+  P.cash += amount; S.fy.loansIn += amount; payOneoff(S, Math.round(amount * 0.01));
+  addLog(S, 'good', b.name + ' approva ' + fmtE(amount) + ' al ' + (q.rate * 100).toFixed(2).replace('.', ',') + '% per ' + term + ' mesi (rata ' + fmtE(payment) + ').');
+  return ok('Approvato.');
+}
+function prepayLoan(S, id) {
+  const P = S.player, i = P.loans.findIndex(l => l.id === id); if (i < 0) return no('Non trovato.');
+  const l = P.loans[i], pen = Math.round(l.balance * 0.01);
+  if (P.cash < l.balance + pen) return no('Servono ' + fmtE(l.balance + pen) + ' (debito + 1% di penale).');
+  P.cash -= l.balance; S.fy.loansOut += l.balance; payOneoff(S, pen); P.loans.splice(i, 1);
+  return ok('Prestito estinto.');
+}
+function equityOffer(S, pct) {
+  const P = S.player, m = metrics(S); pct = clamp(+pct || 0, 0.05, 0.4); let why = '';
+  if (S.t < 12) why = 'Gli investitori vogliono vederti gestire l\'azienda per almeno un anno.';
+  else if (m.e12 <= 0) why = 'Nessun investitore entra in un\'azienda che non guadagna.';
+  else if (S.t - P.lastRound < 12) why = 'Hai già fatto un aumento di capitale negli ultimi 12 mesi.';
+  else if (P.own * (1 - pct) < 0.51) why = 'Scenderesti sotto il 51%: perderesti il controllo.';
+  const pre = m.value * 0.8;
+  return { pct, pre, cash: Math.round(pre * pct / (1 - pct) / 1000) * 1000, ownAfter: P.own * (1 - pct), why };
+}
+function sellEquity(S, pct) {
+  const P = S.player, o = equityOffer(S, pct); if (o.why) return no(o.why);
+  P.cash += o.cash; S.fy.equityIn += o.cash; P.raised += o.cash; P.own = o.ownAfter; P.lastRound = S.t;
+  addLog(S, 'good', 'Un fondo entra con ' + fmtE(o.cash) + ' per il ' + Math.round(o.pct * 100) + '%. La tua quota scende al ' + (P.own * 100).toFixed(1).replace('.', ',') + '%.');
+  return ok('Aumento di capitale fatto: +' + fmtE(o.cash) + '.');
+}
+
+/* ---------- eventi con scelta ---------- */
+function pickR(S, arr) { return arr[Math.floor(rnd(S) * arr.length)]; }
+const EVENTS = {
+  gara: {
+    cond: S => true,
+    make(S) {
+      const P = S.player, zs = ZONES.filter(z => nearestDepot(S, z.id).d < 95), z = pickR(S, zs);
+      const opts = ['off', 'off', 'ali', 'san', 'lab'].filter(s => !SMAP[s].cert || P.certs[SMAP[s].cert]); const s = pickR(S, opts), G = SMAP[s];
+      const vol = Math.round(market(S, z.id, s) / G.season[S.t % 12] * (0.03 + rnd(S) * 0.05) / 10) * 10, months = pickR(S, [24, 36, 48]);
+      const who = { off: 'Un gruppo di carpenterie', ali: 'Un\'industria di bevande', san: 'L\'azienda ospedaliera', lab: 'Un centro di ricerca' }[s];
+      const val = v => fmtE(vol * v * sum(Object.keys(G.mix), g => G.mix[g] * refPrice(S, g)) * G.pm);
+      return { zone: z.id, seg: s, vol, months, title: 'Gara di fornitura a ' + z.name, text: who + ' di ' + z.name + ' cerca un fornitore unico: ' + fmtN(vol) + ' bombole al mese per ' + months + ' mesi. Vince l\'offerta migliore. Ti servono circa ' + fmtN(vol * G.rot) + ' bombole in più nel parco.',
+        options: [{ label: 'Offerta aggressiva (−18%)', desc: 'Quasi sempre vinci. Circa ' + val(0.82) + ' al mese, margine sottile.' }, { label: 'Offerta di mercato (−8%)', desc: 'Vinci una volta su due. Circa ' + val(0.92) + ' al mese.' }, { label: 'Prezzo pieno', desc: 'Vinci di rado, ma guadagni bene. Circa ' + val(1) + ' al mese.' }, { label: 'Non partecipi', desc: 'Nessun impegno.' }] };
+    },
+    apply(S, e, i) {
+      if (i === 3) return 'Hai lasciato la gara agli altri.';
+      const P = S.player, base = [0.85, 0.5, 0.18][i] + (P.execs.dc ? 0.08 : 0) + (P.certs.iso ? 0.05 : 0) + (P.rep - 60) * 0.004 - (dk(S).react - 1) * 0.15;
+      if (rnd(S) > clamp(base, 0.03, 0.95)) return 'Gara persa: ha vinto un concorrente.';
+      P.contracts.push({ id: 'k' + (++S.nextId), name: e.title.replace('Gara di fornitura a ', 'Contratto '), zone: e.zone, seg: e.seg, vol: e.vol, pIdx: [0.82, 0.92, 1][i], months: e.months });
+      return 'Gara vinta! ' + fmtN(e.vol) + ' bombole al mese per ' + e.months + ' mesi.';
+    }
+  },
+  pec: {
+    cond: S => GASES.some(g => !S.player.lines[g.id]),
+    make(S) { const up = 2 + Math.floor(rnd(S) * 3); return { up, title: 'PEC del fornitore: aumento dei prezzi', text: 'Gruppo Borea comunica un aumento del ' + up + '% su tutti i gas che compri da loro, dal mese prossimo.',
+      options: [{ label: 'Accetti', desc: 'I gas in rivendita costano il ' + up + '% in più.' }, { label: 'Tratti', desc: 'Una volta su due ottieni metà aumento. Se va male, aumento pieno e rapporti più freddi.' }, { label: 'Cerchi un altro fornitore', desc: 'Prezzi più bassi del 3% rispetto a oggi, ma Borea è anche il tuo primo cliente in officina: la prenderà male.' }] }; },
+    apply(S, e, i) { const P = S.player, B = S.accts.bor;
+      if (i === 0) { P.supF *= 1 + e.up / 100; return 'Aumento accettato.'; }
+      if (i === 1) { if (rnd(S) < 0.5 + (P.execs.dc ? 0.15 : 0)) { P.supF *= 1 + e.up / 200; return 'Trattativa riuscita: aumento dimezzato.'; } P.supF *= 1 + e.up / 100; B.rel = Math.max(0.3, B.rel - 0.05); return 'Trattativa fallita: aumento pieno.'; }
+      P.supF *= 0.97; P.altSup = true; B.rel = Math.max(0.3, B.rel - 0.35); return 'Hai cambiato fornitore. Borea riduce il lavoro che ti manda in officina.'; }
+  },
+  barcode: {
+    cond: S => !S.player.barcode && S.accts.bor.ts > 0.2,
+    make(S) { const c = Math.round(UPG.soft.cost * infl(S)); return { title: 'Il cliente vuole i barcode sul suo portale', text: 'Gruppo Borea chiede che ogni bombola collaudata venga aggiornata sul loro portale: barcode nuovo, data di collaudo, prossima scadenza. A mano è almeno un minuto a bombola.',
+      options: [{ label: 'Lo fate a mano', desc: 'Nessuna spesa, ma l\'officina perde il 5% di produttività.' }, S.player.up.soft ? { label: 'Lo fa il gestionale', desc: 'Hai già il gestionale: basta collegarlo.' } : { label: 'Compri gestionale e lettori', desc: 'Paghi ' + fmtE(c) + '. Fa tutto da solo e l\'officina rende il 12% in più.', cost: c }, { label: 'Rifiuti', desc: 'Borea manderà altrove parte delle bombole.' }] }; },
+    apply(S, e, i) { const P = S.player;
+      if (i === 0) { P.barcode = 'manuale'; return 'Si fa a mano, con pazienza.'; }
+      if (i === 1) { if (!P.up.soft) { const r = buyUpgrade(S, 'soft'); if (!r.ok) return r.msg; } P.barcode = 'auto'; S.accts.bor.rel = Math.min(1.3, S.accts.bor.rel + 0.05); return 'Il portale si aggiorna da solo. Borea apprezza.'; }
+      P.barcode = 'no'; S.accts.bor.rel = Math.max(0.3, S.accts.bor.rel - 0.3); return 'Hai rifiutato. Borea non l\'ha presa bene.'; }
+  },
+  co2: {
+    cond: S => { const m = S.t % 12; return m >= 4 && m <= 7 && !S.short.co2 && S.player.share.bas && sum(ZONES, z => S.player.share[z.id].ali + S.player.share[z.id].off) > 0.05; },
+    make() { return { title: 'Manca la CO₂', text: 'Fermo di due impianti in Europa: per tre mesi di CO₂ ce n\'è poca e costa cara.',
+      options: [{ label: 'Paghi il sovrapprezzo', desc: 'La CO₂ ti costa il 50% in più per 3 mesi, ma servi tutti.' }, { label: 'Razioni i clienti', desc: 'Consegni solo il 60% della CO₂ per 3 mesi. Il servizio ne risente.' }] }; },
+    apply(S, e, i) { S.short.co2 = { f: 0.6, m: 3, pay: i === 0 }; return i === 0 ? 'Paghi di più ma nessun cliente resta a secco.' : 'Consegne di CO₂ ridotte per tre mesi.'; }
+  },
+  insoluto: {
+    cond: S => S.player.AR.off > 60000,
+    make(S) { const loss = Math.round(S.player.AR.off * (0.05 + rnd(S) * 0.05) / 100) * 100, fee = Math.round(loss * 0.08); return { loss, title: 'Un cliente è fallito', text: 'Una carpenteria che ti deve ' + fmtE(loss) + ' ha portato i libri in tribunale.',
+      options: [{ label: 'Incarichi un legale', desc: 'Paghi ' + fmtE(fee) + '. Una volta su due recuperi il 40%.', cost: fee }, { label: 'Passi a perdita', desc: 'Perdi tutto il credito.' }] }; },
+    apply(S, e, i) { const P = S.player; let lost = Math.min(e.loss, P.AR.off); let msg = 'Credito perso: ' + fmtE(lost) + '.';
+      if (i === 0) { payOneoff(S, e.options[0].cost); if (rnd(S) < 0.5) { lost = Math.round(lost * 0.6); msg = 'Il legale recupera il 40%. Perdi ' + fmtE(lost) + '.'; } else msg = 'Il legale non recupera nulla. ' + msg; }
+      P.AR.off -= lost; S.fy.bad += lost; S.fy.ebitda -= lost; S.fy.dAR -= lost; P.ytd.ebt -= lost; return msg; }
+  },
+  rivenditore: {
+    cond: S => S.t > 8,
+    make(S) { const z = pickR(S, ZONES.filter(x => nearestDepot(S, x.id).d < 80)), add = 0.04 + rnd(S) * 0.04, cyl = Math.round(market(S, z.id, 'off') * add * 2.2 / 50) * 50;
+      const price = Math.round((cyl * 110 + market(S, z.id, 'off') * add * 40 * 12 * 0.45) * infl(S) / 1000) * 1000;
+      return { zone: z.id, add, cyl, price, title: 'Un rivenditore va in pensione', text: 'Un piccolo rivenditore di ' + z.name + ' vende tutto: i suoi clienti (circa il ' + Math.round(add * 100) + '% delle officine della zona) e ' + fmtN(cyl) + ' bombole.',
+        options: [{ label: 'Compri', desc: 'Paghi ' + fmtE(price) + '. Clienti e bombole sono tuoi da subito.', cost: price }, { label: 'Lasci perdere', desc: 'Lo comprerà un concorrente.' }] }; },
+    apply(S, e, i) { const P = S.player; if (i === 1) return 'Hai lasciato perdere.';
+      payCapex(S, e.price); const cv = Math.round(e.cyl * 110 * infl(S)); P.fleet.n += e.cyl; P.fleet.book += cv; P.fleet.dep += cv / 120; addAsset(S, e.price - cv, 120);
+      P.share[e.zone].off = Math.min(0.9, P.share[e.zone].off + e.add); return 'Acquisizione fatta: più clienti e ' + fmtN(e.cyl) + ' bombole in più.'; }
+  },
+  padrone: {
+    cond: S => !S.player.sede.own && S.t > 14 && !S.player.sede.asked,
+    make(S) { const q = propQuote(S, 'sede'), c = Math.round(q.cost * 0.94), mv = Math.round(18000 * (S.player.sede.size + 1) * cm(S));
+      return { title: 'Il padrone del capannone vuole vendere', text: 'Il proprietario della tua sede ha bisogno di soldi. Ti offre il capannone a ' + fmtE(c) + ' (il 6% sotto il mercato), oppure rinnova l\'affitto con un aumento del 12%. Oggi paghi ' + fmtE(q.rent) + ' al mese.',
+        options: [{ label: 'Compri con il mutuo', desc: 'La banca mette ' + fmtE(q.mort) + ' in 15 anni (rata ' + fmtE(q.payment) + ' al mese), tu ' + fmtE(c - q.mort) + '. Serve un rating di almeno 30.', cost: c - q.mort }, { label: 'Accetti l\'aumento', desc: 'L\'affitto sale del 12%, per sempre.' }, { label: 'Traslochi altrove', desc: 'Paghi ' + fmtE(mv) + ' e l\'officina rallenta per due mesi, ma l\'affitto resta quello di mercato.', cost: mv }] }; },
+    apply(S, e, i) { const P = S.player; P.sede.asked = true;
+      if (i === 0) { const r = buyProperty(S, 'sede', true, 0.94); if (r.ok) return 'Il capannone è tuo.'; P.sede.rentF = (P.sede.rentF || 1) * 1.12; return r.msg + ' Resti in affitto, con l\'aumento.'; }
+      if (i === 1) { P.sede.rentF = (P.sede.rentF || 1) * 1.12; return 'Affitto rinnovato, più caro del 12%.'; }
+      payOneoff(S, e.options[2].cost); P.mods.prod = { f: 0.85, m: 2 }; return 'Trasloco fatto. Stesso affitto, due mesi di disordine.'; }
+  },
+  esperto: {
+    cond: S => S.player.wc + S.player.wp >= 3,
+    make(S) { const c = Math.round(4000 * cm(S)); return { title: 'Il tuo operaio migliore ha un\'offerta', text: 'Un concorrente offre di più all\'operaio che conosce tutte le lavorazioni. In officina non c\'è nessuno che lo sostituisca.',
+      options: [{ label: 'Controfferta', desc: 'Paghi ' + fmtE(c) + ' e resta.', cost: c }, { label: 'Lo lasci andare', desc: 'L\'officina rende il 10% in meno per 6 mesi.' }] }; },
+    apply(S, e, i) { if (i === 0) { payOneoff(S, e.options[0].cost); return 'Resta con te.'; } S.player.mods.prod = { f: 0.9, m: 6 }; return 'Se n\'è andato: sei mesi per formare un sostituto.'; }
+  },
+  adr: {
+    cond: S => true,
+    make(S) { const c = Math.round((6000 + 2500 * sum(S.player.depots, d => d.trucks)) * cm(S)); return { title: 'Controlli sul trasporto di merci pericolose', text: 'La Motorizzazione annuncia controlli ADR a tappeto su camion, patentini e documenti di trasporto.',
+      options: [{ label: 'Metti tutto in regola', desc: 'Paghi ' + fmtE(c) + ' tra corsi, attrezzature e revisioni.', cost: c }, { label: 'Rischi', desc: (S.player.execs.rspp ? 'Con il responsabile sicurezza il rischio è basso (1 su 10).' : '4 volte su 10 arriva una multa da ' + fmtE(c * 2.5) + ' e un camion fermo.') }] }; },
+    apply(S, e, i) { const P = S.player; if (i === 0) { payOneoff(S, e.options[0].cost); P.rep = Math.min(100, P.rep + 1); return 'Tutto in regola.'; }
+      if (rnd(S) < (P.execs.rspp ? 0.1 : 0.4)) { payOneoff(S, Math.round(e.options[0].cost * 2.5)); P.rep = Math.max(0, P.rep - 5); ZONES.forEach(z => P.sl[z.id] = Math.max(0.5, P.sl[z.id] - 0.06)); return 'Multa pesante e un camion fermo: consegne in ritardo.'; }
+      return 'Nessun controllo, per questa volta.'; }
+  },
+  urgente: {
+    cond: S => S.player.wp > 0 && ACCTS.some(x => S.accts[x.id].ps > 0.05),
+    make(S) { const a = pickR(S, ACCTS.filter(x => S.accts[x.id].ps > 0.05)), n = 4 + Math.floor(rnd(S) * 5), ot = Math.round(n * 600 * cm(S)); return { acct: a.id, n, title: 'Ordine urgente di pacchi', text: a.name + ' ha bisogno di ' + n + ' pacchi nuovi entro il mese, oltre agli ordini normali.',
+      options: [{ label: 'Accetti con gli straordinari', desc: 'Consegni tutto. Straordinari per ' + fmtE(ot) + ', ma il cliente se lo ricorda.', cost: ot }, { label: 'Accetti senza fretta', desc: 'Entrano in coda con gli altri ordini.' }, { label: 'Rifiuti', desc: 'Li farà qualcun altro. Il rapporto si raffredda un po\'.' }] }; },
+    apply(S, e, i) { const P = S.player, A = S.accts[e.acct];
+      if (i === 2) { A.rel = Math.max(0.3, A.rel - 0.06); return 'Ordine rifiutato.'; }
+      if (i === 1) { P.qp[e.acct].nw += e.n; return 'Ordine in coda.'; }
+      payOneoff(S, e.options[0].cost); S.rush = (S.rush || 0) + e.n; S.rushAcct = e.acct; A.rel = Math.min(1.3, A.rel + 0.08); return 'Ordine accettato: si lavora anche di sabato.'; }
+  },
+  quadro: {
+    cond: S => S.player.wc >= 3 && S.t > 6 && ACCTS.some(x => !(S.accts[x.id].tb > 0) && S.accts[x.id].ts < 0.45),
+    make(S) { const a = pickR(S, ACCTS.filter(x => !(S.accts[x.id].tb > 0) && S.accts[x.id].ts < 0.45)), n = Math.round(a.test * acctGrow(S, a) * 0.5 / 12);
+      return { acct: a.id, title: a.name + ' cerca un centro di collaudo', text: a.name + ' vuole un solo centro per metà delle sue bombole: circa ' + fmtN(n) + ' collaudi al mese per 3 anni. Chiede un prezzo e tempi certi. Oggi la tua officina ne fa circa ' + fmtN(testCap(S).cap) + ' al mese.',
+        options: [{ label: 'Prezzo stracciato', desc: 'Quasi sempre vinci, ma devi abbassare il listino collaudi del 12% per tutti.' }, { label: 'Prezzo di listino', desc: 'Vinci una volta su due.' }, { label: 'Non ti candidi', desc: 'Pochi clienti grandi portano ordine, ma serve capacità.' }] }; },
+    apply(S, e, i) { const P = S.player, st = S.accts[e.acct]; if (i === 2) return 'Non ti sei candidato.';
+      if (i === 0) P.testIdx = clamp(r2(P.testIdx * 0.88), 0.7, 1.5);
+      if (rnd(S) > clamp((i === 0 ? 0.85 : 0.45) + (P.execs.dc ? 0.1 : 0) + (P.certs.iso ? 0.08 : 0) + (P.up.soft ? 0.05 : 0), 0, 0.95)) return 'Hanno scelto un altro centro.';
+      st.tb = 0.5; st.tbm = 36; st.rel = Math.min(1.3, st.rel + 0.1); return 'Accordo firmato: preparati a un bel po\' di bombole in più.'; }
+  },
+  termini: {
+    cond: S => ACCTS.some(x => S.accts[x.id].ts + S.accts[x.id].ps > 0.2),
+    make(S) { const a = pickR(S, ACCTS.filter(x => S.accts[x.id].ts + S.accts[x.id].ps > 0.2)); return { acct: a.id, title: a.name + ' chiede di pagare a 120 giorni', text: 'Il cliente vuole allungare i pagamenti a 120 giorni su collaudi e pacchi. Dice che gli altri fornitori hanno già accettato.',
+      options: [{ label: 'Accetti', desc: 'Incassi più tardi: ti serve più cassa. Il cliente ti manda più lavoro.' }, { label: 'Rifiuti', desc: 'Incassi come prima, ma una parte del lavoro andrà ad altri.' }] }; },
+    apply(S, e, i) { const A = S.accts[e.acct]; if (i === 0) { A.dso = 120; A.rel = Math.min(1.3, A.rel + 0.1); return 'Pagamenti a 120 giorni.'; } A.rel = Math.max(0.3, A.rel - 0.12); return 'Hai tenuto il punto.'; }
+  },
+  furto: {
+    cond: S => S.player.fleet.n > 1500,
+    make(S) { const n = Math.round(S.player.fleet.n * (0.02 + rnd(S) * 0.02)), c = Math.round(n * 22 * cm(S)); return { n, title: 'Bombole che non tornano', text: 'L\'inventario non torna: circa ' + fmtN(n) + ' bombole risultano da clienti che non comprano più da mesi.',
+      options: [{ label: 'Campagna di recupero', desc: 'Paghi ' + fmtE(c) + ' tra telefonate e giri di ritiro. Ne recuperi circa il 60%.', cost: c }, { label: 'Le dai per perse', desc: 'Escono dal parco.' }] }; },
+    apply(S, e, i) { const P = S.player; let lost = e.n; if (i === 0) { payOneoff(S, e.options[0].cost); lost = Math.round(e.n * 0.4); }
+      lost = Math.min(lost, P.fleet.n); const frac = P.fleet.n ? lost / P.fleet.n : 0, bk = P.fleet.book * frac; P.fleet.n -= lost; P.fleet.book -= bk; P.fleet.dep *= 1 - frac; P.ytd.ebt -= bk; P.lost += lost; P.q.own = Math.min(P.q.own, P.fleet.n);
+      return fmtN(lost) + ' bombole perse per sempre.'; }
+  }
+};
+function maybeEvent(S) {
+  if (S.pending || S.over || S.t < S.nextEv) return;
+  const ids = Object.keys(EVENTS).filter(k => k !== S.lastEv && EVENTS[k].cond(S)); if (!ids.length) return;
+  const id = rnd(S) < 0.3 && S.lastEv !== 'gara' ? 'gara' : pickR(S, ids), e = EVENTS[id].make(S); e.id = id; S.pending = e; S.lastEv = id;
+  S.nextEv = S.t + 3 + Math.floor(rnd(S) * 4 / dk(S).shock);
+}
+function resolveEvent(S, i) {
+  const e = S.pending; if (!e) return no('Nessuna decisione in sospeso.');
+  i = Math.round(+i); const o = e.options[i]; if (!o) return no('Scelta non valida.');
+  if (o.cost && S.player.cash < o.cost) return no('Non hai abbastanza cassa per questa scelta (servono ' + fmtE(o.cost) + ').');
+  S.pending = null;
+  const msg = EVENTS[e.id].apply(S, e, i);
+  addLog(S, 'info', e.title + ': ' + o.label.toLowerCase() + '. ' + msg);
+  return ok(msg);
+}
+
+/* ---------- il mese ---------- */
+function simulate(S) {
+  const P = S.player, F = S.fy, C = cm(S), I = infl(S), res = { t: S.t, events: [] };
+  const ev = (kind, txt) => { addLog(S, kind, txt); res.events.push(txt); };
+  const cash0 = P.cash, mg = mgmt(S), over = mg.over;
+
+  // 1. distribuzione gas
+  const pl = distPlan(S);
+  const revGas = pl.rev.off + pl.rev.ali + pl.rev.san + pl.rev.lab, revRent = pl.rental;
+  const totDel = pl.delTot || 1;
+  const arAdd = { off: 0, ali: 0, san: 0, lab: 0, srv: 0 };
+  SEGS.forEach(s => { const d = sum(pl.rows.filter(r => r.s === s.id), r => r.del); arAdd[s.id] = pl.rev[s.id] + revRent * d * s.rot / (pl.outAct || 1); });
+  // servizio e quote
+  ZONES.forEach(z => { const w = pl.zw[z.id] || 0, sl = w > 0 ? (pl.zd[z.id] || 0) / w : 1; P.sl[z.id] = clamp(0.6 * P.sl[z.id] + 0.4 * (sl - 0.5 * over * 0.1), 0.3, 1); });
+  if (pl.fFleet < 0.97) ev('warn', 'Ti mancano bombole: hai potuto consegnare solo il ' + Math.round(pl.fFleet * 100) + '% di quello che i clienti chiedevano.');
+  pl.deps.forEach(d => { if (d.f < 0.97) ev('warn', 'Deposito di ' + ZMAP[d.zone].name + ': camion insufficienti, consegnato solo il ' + Math.round(d.f * 100) + '%.'); });
+  for (const z of ZONES) for (const s of SEGS) {
+    const cur = P.share[z.id][s.id];
+    P.share[z.id][s.id] = clamp(shareStep(cur, shareParts(S, z.id, s.id), s.stick) - (P.sl[z.id] < 0.85 ? 0.03 * cur : 0), 0, 0.95);
+  }
+  // i concorrenti rispondono dove gli porti via clienti
+  for (const c of COMPS) for (const z of ZONES) {
+    const mine = sum(SEGS, s => P.share[z.id][s.id] * (c.seg[s.id] > 0 ? 1 : 0)) / SEGS.length, A = S.comps[c.id].adj;
+    A[z.id] = clamp(A[z.id] + (mine > 0.10 ? -0.008 * dk(S).react : 0.003), c.floor / c.p, 1);
+  }
+  // contratti
+  P.contracts.forEach(c => c.months--); const done = P.contracts.filter(c => c.months <= 0);
+  if (done.length) ev('info', 'Contratti scaduti: ' + done.map(c => c.name).join(', ') + '.');
+  P.contracts = P.contracts.filter(c => c.months > 0);
+
+  // 2. parco bombole: perdite e collaudi in scadenza
+  const lost = Math.min(P.fleet.n, Math.round(pl.outAct * 0.002 + rnd(S)));
+  if (lost > 0 && P.fleet.n > 0) { const fr = lost / P.fleet.n, bk = P.fleet.book * fr; P.fleet.n -= lost; P.fleet.book -= bk; P.fleet.dep *= 1 - fr; P.ytd.ebt -= bk; P.lost += lost; }
+  const due = Math.round(P.fleet.n / 120 + rnd(S) - 0.5);
+  let testOutCost = 0;
+  if (P.ownTestOut || P.wc === 0) testOutCost = Math.max(0, due) * TEST_OUT * C; else P.q.own += Math.max(0, due);
+  P.q.own = Math.min(P.q.own, P.fleet.n);
+
+  // 3. officina: collaudo
+  const Aq = P.q; let revTest = 0;
+  ACCTS.forEach(a => {
+    const st = S.accts[a.id], lam = a.test * acctGrow(S, a) / 12 * st.ts;
+    if (lam > 1 && rnd(S) < 0.55) Aq.ext[a.id] += Math.round(lam / 0.55 * (0.7 + 0.6 * rnd(S)));   // arrivano a lotti, non tutti i mesi
+  });
+  if (P.smallOk && P.wc > 0) Aq.small += Math.round(80 * Math.exp(-1.5 * Math.log(P.testIdx * 1.2)) * (0.6 + 0.8 * rnd(S)));
+  const tc = testCap(S); let capLeft = tc.cap, doneTest = 0, doneOwn = 0;
+  doneOwn = Math.min(Aq.own, capLeft); Aq.own -= doneOwn; capLeft -= doneOwn;
+  const extTot = Aq.small + sum(ACCTS, a => Aq.ext[a.id]), fr = extTot > 0 ? Math.min(1, capLeft / extTot) : 0;
+  ACCTS.forEach(a => { const d = Aq.ext[a.id] * fr; Aq.ext[a.id] -= d; doneTest += d; revTest += d * TEST_REF * I * P.testIdx; });
+  { const d = Aq.small * fr; Aq.small -= d; doneTest += d; revTest += d * TEST_REF * I * P.testIdx * 1.2; }
+  const scrap = Math.min(P.fleet.n, Math.round(doneOwn * 0.02));
+  if (scrap > 0) { const f2 = scrap / P.fleet.n, bk = P.fleet.book * f2; P.fleet.n -= scrap; P.fleet.book -= bk; P.fleet.dep *= 1 - f2; P.ytd.ebt -= bk; }
+  const testVar = (doneTest + doneOwn) * TEST_VAR * C;
+  const lead = tc.cap > 0 ? (extTot - doneTest) / tc.cap : (extTot > 0 ? 9 : 0);
+  P.tested += doneTest + doneOwn;
+  if (lead > 1.5 && extTot > 50) ev('warn', 'Officina intasata: i clienti aspettano le bombole da più di ' + lead.toFixed(1).replace('.', ',') + ' mesi.');
+
+  // 4. officina: pacchi
+  let revPack = 0, matPack = 0; const pcap = packCap(S); let pLeft = pcap, builtN = 0, builtR = 0;
+  ACCTS.forEach(a => { const st = S.accts[a.id], g = acctGrow(S, a); P.qp[a.id].nw += poisson(S, a.pack / 12 * st.ps * g); P.qp[a.id].rv += poisson(S, a.rev / 12 * st.ps * g); });
+  if (S.rush) { const n = S.rush; builtN += n; P.packs += n; revPack += n * PACK_REF * I * P.packIdx * 1.05; matPack += n * (PACK_MAT - (P.up.telai ? 900 : 0)) * I * S.macro.steel; S.rush = 0; }
+  const needP = sum(ACCTS, a => P.qp[a.id].nw + 0.25 * P.qp[a.id].rv), fp = needP > 0 ? Math.min(1, pLeft / needP) : 0;
+  ACCTS.forEach(a => {
+    const q = P.qp[a.id], dn = Math.floor(q.nw * fp + (rnd(S) < (q.nw * fp) % 1 ? 1 : 0)), dr = Math.floor(q.rv * fp + (rnd(S) < (q.rv * fp) % 1 ? 1 : 0));
+    const n2 = Math.min(q.nw, dn), r3 = Math.min(q.rv, dr); q.nw -= n2; q.rv -= r3; builtN += n2; builtR += r3; P.packs += n2;
+    revPack += (n2 * PACK_REF + r3 * REV_REF) * I * P.packIdx;
+    matPack += n2 * (PACK_MAT - (P.up.telai ? 900 : 0)) * I * S.macro.steel + r3 * REV_MAT * I;
+  });
+  const leadP = pcap > 0 ? (needP - builtN - 0.25 * builtR) / pcap : (needP > 0 ? 9 : 0);
+  // rapporti con i clienti dell'officina
+  ACCTS.forEach(a => {
+    const st = S.accts[a.id];
+    // il fornitore ti dà lavoro finché compri da lui: più riempi in casa, meno bombole e ordini ti manda
+    const relTop = a.supplier ? 1.15 - 0.6 * (pl.delTot > 0 ? pl.filled / pl.delTot : 0) - (P.altSup ? 0.25 : 0) : 1.15;
+    let rel = st.rel + (relTop < st.rel ? 0.04 : P.execs.dc ? 0.006 : 0.002) * (relTop - st.rel) - (lead > 1.2 ? 0.01 : 0) - (leadP > 2 ? 0.01 : 0);
+    if (a.comp) { const taken = sum(ZONES, z => sum(SEGS, s => P.share[z.id][s.id])) / (ZONES.length * SEGS.length); rel -= Math.max(0, taken - 0.12) * 0.03; }   // se gli porti via troppi clienti del gas, smettono di darti lavoro
+    st.rel = clamp(rel, 0.3, 1.3);
+    const lf = lead <= 0.7 ? 1 : Math.max(0.35, 1 - 0.4 * (lead - 0.7)), lfp = leadP <= 1.2 ? 1 : Math.max(0.35, 1 - 0.3 * (leadP - 1.2));
+    // quanto lavoro ti danno: dipende da prezzo, puntualità, rapporto e da come è organizzata l'officina
+    const q = 1 + (P.execs.dc ? 0.25 : 0) + (P.certs.iso ? 0.12 : 0) + (P.up.soft ? 0.10 : 0) + (P.execs.capo ? 0.10 : 0) + 0.006 * (P.rep - 60);
+    if (st.tbm > 0 && --st.tbm <= 0) st.tb = 0;
+    // la fiducia cresce con gli anni di lavoro puntuale, e si perde in fretta con i ritardi
+    st.trT = clamp((st.trT || 0) + (lead <= 1 ? 0.003 : lead > 1.5 ? -0.02 : 0), 0, 0.3); st.trP = clamp((st.trP || 0) + (leadP <= 1.5 ? 0.003 : leadP > 2.5 ? -0.02 : 0), 0, 0.3);
+    const qT = q + (P.up.banco ? 0.15 : 0) + (P.up.vernice ? 0.15 : 0) + (P.up.linea ? 0.2 : 0) + st.trT, qP = q + (P.up.telai ? 0.35 : 0) + st.trP;
+    const tt = clamp(Math.max(a.t0 * qT, st.tb || 0) * Math.exp(-a.kap * Math.log(P.testIdx)) * lf * st.rel * (P.barcode === 'no' && a.supplier ? 0.5 : 1), 0, 1);
+    const pt = clamp(a.p0 * qP * Math.exp(-a.kap * Math.log(P.packIdx)) * lfp * st.rel, 0, 1);
+    st.ts += 0.08 * (tt - st.ts); st.ps += 0.08 * (pt - st.ps);
+  });
+  arAdd.srv = revTest + revPack;
+
+  // 5. costi
+  const nTrucks = sum(P.depots, d => d.trucks), nReps = sum(Object.keys(P.reps), z => P.reps[z]);
+  const rev = revGas + revRent + revTest + revPack;
+  const fillW = Math.ceil(pl.filled / 2600), office = Math.ceil(rev / (120000 * I)) + 1;
+  const staff = (P.wc + P.wp + fillW) * SAL.worker * C + nTrucks * SAL.driver * C + nReps * SAL.rep * C + 0.015 * revGas + office * SAL.office * C + P.depots.length * SAL.depot * C
+    + SAL.stipend * C + sum(Object.keys(EXECS).filter(k => P.execs[k]), k => EXECS[k].salary) * C;
+  const logi = nTrucks * TRUCK_COST * C + pl.fuel + pl.extCost;
+  const nrMonth = notionalRent(S);
+  const fixed = sitesCost(S) + sum(Object.keys(CERTS).filter(k => P.certs[k]), k => CERTS[k].fee) * C + sum(Object.keys(P.lines).filter(k => P.lines[k]), k => GMAP[k].line > 100000 ? 3500 : 1800) * C + 1500 * C + 0.005 * rev;
+  const gas = pl.gasCost, mat = testVar + matPack + testOutCost;
+  let other = rev * 0.02 * over;
+  // imprevisti
+  if (nTrucks > 0 && rnd(S) < 0.012 * nTrucks) { const c = Math.round((1800 + rnd(S) * 3200) * C); other += c; ev('bad', 'Guasto a un camion: riparazione ' + fmtE(c) + '.'); }
+  const risk = 0.0035 * (1 + 0.4 * Object.keys(P.lines).filter(k => P.lines[k]).length + (P.wc + P.wp) / 12) * (P.execs.rspp ? 0.35 : 1) * dk(S).shock;
+  if (rnd(S) < risk) { const c = Math.round((12000 + rnd(S) * 30000) * C); other += c; P.rep = Math.max(0, P.rep - 6); P.mods.prod = { f: 0.8, m: 2 }; ev('bad', 'Infortunio in officina: multa e fermo per ' + fmtE(c) + ', reputazione in calo.'); }
+  // crediti persi
+  let bad = 0; SEGS.forEach(s => { const b = P.AR[s.id] * s.bad * (S.macro.rec > 0 ? 3 : 1) * (P.execs.cfo ? 0.6 : 1); P.AR[s.id] -= b; bad += b; });
+  const ebitda = rev - gas - mat - staff - logi - fixed - other - bad;
+  // incassi e pagamenti
+  let coll = 0; const dsoF = P.execs.cfo ? 0.88 : 1;
+  SEGS.forEach(s => { P.AR[s.id] += arAdd[s.id]; const c = P.AR[s.id] * Math.min(1, 30 / (s.dso * dsoF)); P.AR[s.id] -= c; coll += c; });
+  { const w = sum(ACCTS, a => (S.accts[a.id].ts * a.test * 3 + S.accts[a.id].ps * a.pack * 800)) || 1, d = sum(ACCTS, a => S.accts[a.id].dso * (S.accts[a.id].ts * a.test * 3 + S.accts[a.id].ps * a.pack * 800)) / w;
+    P.AR.srv += arAdd.srv; const c = P.AR.srv * Math.min(1, 30 / (d * dsoF)); P.AR.srv -= c; coll += c; }
+  const purch = gas + matPack; P.AP += purch; const payAP = P.AP * (30 / 45); P.AP -= payAP;
+  const cashCosts = (gas + mat - purch) + staff + logi + fixed + other;
+  P.cash += coll - payAP - cashCosts;
+  F.revGas += revGas; F.revRent += revRent; F.revTest += revTest; F.revPack += revPack; F.gas += gas; F.mat += mat; F.staff += staff; F.logi += logi; F.fixed += fixed; F.other += other; F.bad += bad; F.ebitda += ebitda;
+  F.dAR += rev - coll - bad; F.dAP += purch - payAP;
+  // anticipo fatture
+  const m0 = metrics(S), A = P.adv, tgt = A.on ? Math.min(m0.advLimit, Math.round(A.pct * m0.ar)) : 0, dA = tgt - A.bal;
+  A.bal = tgt; P.cash += dA; F.dAdv += dA;
+  // ammortamenti
+  let dep = Math.min(P.fleet.book, P.fleet.dep); P.fleet.book -= dep;
+  P.assets.forEach(a => { const d = Math.min(a.b, a.d); a.b -= d; dep += d; });
+  ownedIds(S).forEach(id => { const w = siteObj(S, id).own, d = Math.min(w.b, w.d); w.b -= d; dep += d; }); P.assets = P.assets.filter(a => a.b > 0.5);
+  // finanza
+  let interest = 0, principal = 0;
+  for (const l of P.loans) { const i = l.balance * l.rate / 12, pr = Math.min(l.balance, Math.max(0, l.payment - i)); l.balance -= pr; l.remaining--; interest += i; principal += pr; }
+  for (const l of P.loans) if (l.remaining <= 0 && l.balance > 0) { principal += l.balance; l.balance = 0; }
+  P.loans = P.loans.filter(l => l.balance > 0.5);
+  interest += A.bal * (S.macro.rate + 0.03 - (P.execs.cfo ? 0.006 : 0)) / 12 + (cash0 < 0 ? -cash0 * 0.12 / 12 : 0);
+  const ebt = ebitda - dep - interest; P.ytd.ebt += ebt;
+  F.dep += dep; F.interest += interest; F.loansOut += principal; P.cash -= interest + principal;
+  let tax = 0, div = 0;
+  if (S.t % 12 === 11) {
+    const base = P.ytd.ebt - P.taxLoss; if (base > 0) { tax = Math.round(base * TAX); P.taxLoss = 0; } else P.taxLoss = -base;
+    const net = P.ytd.ebt - tax; P.taxPaid += tax; P.cash -= tax; F.tax += tax;
+    if (tax > 0) ev('warn', 'Imposte dell\'anno: ' + fmtE(tax) + '.');
+    if (P.own < 0.999 && net > 0) { div = Math.round(0.25 * net * (1 - P.own)); P.cash -= div; F.divOut += div; ev('info', 'Dividendo ai soci investitori: ' + fmtE(div) + '.'); }
+    P.ytd.ebt = 0;
+  }
+  // scadenze e reputazione
+  for (const k in P.mods) if (--P.mods[k].m <= 0) delete P.mods[k];
+  for (const g in S.short) if (--S.short[g].m <= 0) delete S.short[g];
+  const slAvg = sum(ZONES, z => P.sl[z.id]) / ZONES.length;
+  P.rep = clamp(P.rep + 0.05 * (55 + 40 * (slAvg - 0.9) / 0.1 * 0.25 + (P.certs.iso ? 5 : 0) + (P.execs.rspp ? 4 : 0) + (lead < 0.7 ? 4 : -4) - P.rep), 0, 100);
+
+  // 6. rilevazioni
+  const rec = { t: S.t, nr: nrMonth, rev, revGas, revRent, revTest, revPack, ebitda, cash: P.cash, debt: debtOf(S), del: pl.delTot, tests: doneTest + doneOwn, packs: builtN, revs: builtR, lead, leadP, fFleet: pl.fFleet, interest, principal, tax, div, dep, ebt, flow: P.cash - cash0 };
+  S.hist.push(rec); if (S.hist.length > 240) S.hist.shift();
+  const m2 = metrics(S); rec.value = m2.value; rec.mine = m2.mine; rec.rating = m2.rating;
+  res.rec = rec;
+  if (S.t % 12 === 11) { const y = Object.assign({ year: START_YEAR + Math.floor(S.t / 12), cashEnd: P.cash, debtEnd: m2.debt, value: m2.value }, F); y.rev = y.revGas + y.revRent + y.revTest + y.revPack; y.net = y.ebitda - y.dep - y.interest - y.oneoff - y.tax; S.years.push(y); S.fy = newFy(); }
+  // 7. fallimento
+  if (P.cash < -m2.limit) { P.warn++; if (P.warn === 1) ev('bad', 'ATTENZIONE: la banca ha tagliato lo scoperto. Hai un mese per rientrare sopra −' + fmtE(m2.limit) + ', altrimenti è fallimento.'); else { S.over = { type: 'fallimento', t: S.t, value: m2.value }; ev('bad', 'Le banche richiamano i crediti. L\'azienda fallisce.'); } } else P.warn = 0;
+  res.over = S.over;
+  return res;
+}
+function evolveMacro(S) {
+  const M = S.macro, sh = dk(S).shock;
+  M.prop = clamp((M.prop || 1) + 0.02 * (1 - (M.prop || 1)) + 0.006 * sh * gauss(S) - (M.rec > 0 ? 0.006 : 0), 0.7, 1.4);
+  M.rate = clamp(M.rate + 0.04 * (0.026 - M.rate) + 0.0012 * sh * gauss(S), 0.005, 0.09);
+  M.infl *= 1 + dk(S).infl / 12 + 0.0006 * gauss(S);
+  M.energy = clamp(M.energy + 0.06 * (1 - M.energy) + 0.035 * sh * gauss(S), 0.6, 2.2);
+  M.steel = clamp(M.steel + 0.05 * (1 - M.steel) + 0.025 * sh * gauss(S), 0.7, 1.7);
+  if (rnd(S) < 0.012 * sh) { M.energy = Math.min(2.2, M.energy + 0.25); addLog(S, 'bad', 'Crisi energetica: sale il costo dei gas liquidi e del gasolio.'); }
+  if (M.rec > 0) M.rec--; if (M.boost > 0) M.boost--;
+  if (M.rec === 0 && M.boost === 0 && S.t > 9) {
+    if (rnd(S) < 0.008 * sh) { M.rec = 8 + Math.floor(rnd(S) * 6); addLog(S, 'bad', 'Recessione industriale: le officine lavorano meno e pagano peggio.'); }
+    else if (rnd(S) < 0.006) { M.boost = 6 + Math.floor(rnd(S) * 5); addLog(S, 'good', 'Ripresa della manifattura: le officine comprano più gas.'); }
+  }
+  M.dem = 1 - (M.rec > 0 ? 0.14 * sh : 0) + (M.boost > 0 ? 0.07 : 0);
+  if (rnd(S) < 0.012 * sh && !S.heUp) { S.heUp = 8; addLog(S, 'bad', 'Carenza mondiale di elio: prezzi alle stelle per mesi.'); }
+  if (S.heUp > 0) S.heUp--;
+  for (const g of GASES) {
+    const x = S.gidx[g.id]; x.y = 0.9 * x.y + g.vol * sh * gauss(S);
+    const base = g.liq || g.id === 'he' ? 0.55 + 0.45 * M.energy : 1;
+    x.v = r2(clamp(base * Math.exp(x.y) * (g.id === 'he' && S.heUp > 0 ? 1.7 : 1), 0.6, 2.6));
+    x.hist.push(x.v); if (x.hist.length > 36) x.hist.shift();
+  }
+}
+function nextMonth(S) {
+  migrate(S);
+  if (S.over) return null;
+  if (S.pending) return { blocked: true, events: [] };
+  const res = simulate(S);
+  S.t++; evolveMacro(S);
+  if (!S.over && S.t === END_MONTHS && !S.ended10) { S.ended10 = true; res.ended10 = true; addLog(S, 'good', 'Sono passati 10 anni! Guarda il tuo risultato.'); }
+  maybeEvent(S); if (S.pending) res.pending = true;
+  return res;
+}
+
+const API = {
+  MESI, START_YEAR, END_MONTHS, TAX, EV_MULT, SAL, GASES, GMAP, SEGS, SMAP, ZONES, ZMAP, COMPS, ACCTS, AMAP, UPG, CERTS, EXECS, BANKS, BANK_MAP, DIFFS,
+  CYL_NEW, CYL_USED, CYL_SCRAP, TRUCK_COST, DEPOT_RENT, DEPOT_CAPEX, SITES, RENT_MQ, PRICE_MQ, DEPOT_MQ, SITE_RUN, TEST_REF, TEST_OUT, PACK_REF, REV_REF,
+  createGame, nextMonth, metrics, mgmt, bankQuote, outlook, distPlan, testCap, packCap, market, targetShare, shareParts, shareIn, refPrice, unitCost, nearestDepot, truckCap, dist, monthName, trail, lineCost, acctGrow, pIndex,
+  setPrice, setFee, setIdx, setFlag, setReps, openDepot, closeDepot, setTrucks, buyCyl, sellCyl, buildLine, buyUpgrade, buyCert, dropCert, setWorkers, setExec, setAdv, requestLoan, prepayLoan, migrate, siteIds, siteRent, siteValue, propQuote, buyProperty, sellProperty, sedeQuote, growSede, pvQuote, buyPV, pvSaving, investCap, investOptions, sitesCost, equityOffer, sellEquity, resolveEvent
+};
+if (typeof module !== 'undefined' && module.exports) module.exports = API; else root.Engine = API;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
+/* Interfaccia di "Alta Pressione": ridisegna la pagina dallo stato del motore dopo ogni azione. */
+(function () {
+'use strict';
+const E = window.Engine;
+const $ = (s, r) => (r || document).querySelector(s);
+const NF = new Intl.NumberFormat('it-IT', { useGrouping: 'always' });
+const num = n => NF.format(Math.round(n));
+const eur = n => (n < -0.5 ? '−' : '') + NF.format(Math.round(Math.abs(n))) + ' €';
+const eur2 = n => n.toFixed(2).replace('.', ',') + ' €';
+const pct = (x, d) => (x * 100).toFixed(d || 0).replace('.', ',') + '%';
+const kfmt = n => { const a = Math.abs(n), s = n < 0 ? '−' : ''; return a >= 1e6 ? s + (a / 1e6).toFixed(1).replace('.', ',') + ' M' : a >= 1000 ? s + Math.round(a / 1000) + ' k' : s + Math.round(a); };
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const sgn = n => (n >= 0 ? 'good' : 'bad');
+const at = (el, k) => el.getAttribute('data-' + k);
+const KEY = 'alta-pressione-v1';
+
+let S = null;
+const UI = { scr: 'map', sub: { ven: 'lis', off: 'col', az: 'pan', alt: 'mer' }, tab: 'map', sheet: null, view: null, confirm: null, modal: null, diff: 'realistico', name: '', eq: 0.15, buyN: 200 };
+const NAV = [['map', 'Mappa', 'map'], ['ven', 'Vendite', 'tag'], ['off', 'Officina', 'tool'], ['az', 'Azienda', 'case'], ['alt', 'Altro', 'more']];
+const SUBS = { ven: [['lis', 'Listino'], ['zon', 'Zone'], ['con', 'Contratti']], off: [['col', 'Collaudo'], ['pac', 'Pacchi'], ['cli', 'Clienti'], ['inv', 'Impianti']], az: [['pan', 'Sintesi'], ['cap', 'Investire'], ['log', 'Logistica'], ['fin', 'Finanza'], ['bil', 'Bilancio'], ['squ', 'Squadra']], alt: [['mer', 'Mercato'], ['not', 'Notizie'], ['gui', 'Guida']] };
+const TIERS = [[2e6, 'Azienda solida'], [5e6, 'Gruppo regionale'], [10e6, 'Protagonista del Nordest'], [20e6, 'Colosso dei gas']];
+const ICON = {
+  map: '<path d="M9 4 3 6.5v13.5l6-2.5 6 2.5 6-2.5V4l-6 2.5L9 4Zm0 0v13.5m6-11v13.5"/>',
+  tag: '<path d="M3 12V4h8l10 10-8 8L3 12Zm5-4.5h.01"/>',
+  tool: '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>',
+  case: '<path d="M3 8h18v11H3V8Zm6 0V5h6v3M3 13h18"/>',
+  more: '<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>',
+  cyl: '<path d="M9 7h6v13a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1V7Zm1-3h4v3h-4V4Zm1-2h2"/>'
+};
+const ico = k => '<svg class="ico" viewBox="0 0 24 24" aria-hidden="true">' + ICON[k] + '</svg>';
+
+function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { /* ignora */ } }
+function loadSaved() { try { const j = localStorage.getItem(KEY); if (j) { const s = JSON.parse(j); if (s && s.v === 1 && s.game === 'gas' && s.player) return E.migrate(s); } } catch (e) { /* ignora */ } return null; }
+function toast(text, ok) { const old = $('.toast'); if (old) old.remove(); const t = document.createElement('div'); t.className = 'toast' + (ok === false ? ' err' : ''); t.setAttribute('role', 'status'); t.textContent = text; document.body.appendChild(t); setTimeout(() => t.remove(), 4200); }
+function say(res) { if (res && res.msg) toast(res.msg, res.ok); save(); render(); }
+const step = (act, attrs, txt, lessLab, moreLab) => '<div class="step"><button data-a="' + act + '" data-dl="-1" ' + attrs + ' aria-label="' + (lessLab || 'Meno') + '">−</button><output>' + txt + '</output><button data-a="' + act + '" data-dl="1" ' + attrs + ' aria-label="' + (moreLab || 'Più') + '">+</button></div>';
+const tgl = (flag, on, lab, hint) => '<div class="ctl"><button class="tgl" data-a="flag" data-k="' + flag + '" aria-pressed="' + !!on + '"><i></i>' + lab + '</button>' + (hint ? '<span class="hint">' + hint + '</span>' : '') + '</div>';
+const conf = (key, label, okAct, okAttrs, okLabel, cls) => UI.confirm === key ? '<span class="row"><button class="' + (cls || 'primary') + '" data-a="' + okAct + '" ' + okAttrs + '>' + okLabel + '</button><button data-a="noconf">Annulla</button></span>' : '<button data-a="ask" data-k="' + key + '">' + label + '</button>';
+
+/* ---------- grafici ---------- */
+function chart(series, labels, w, h) {
+  const n = Math.max.apply(null, series.map(s => s.v.length));
+  if (n < 2) return '<p class="muted small">Il grafico appare dopo il secondo mese di gioco.</p>';
+  const pl = 46, pr = 14, pt = 10, pb = 22; let mn = Infinity, mx = -Infinity;
+  series.forEach(s => s.v.forEach(x => { mn = Math.min(mn, x); mx = Math.max(mx, x); }));
+  if (mn > 0) mn = 0; if (mx <= mn) mx = mn + 1; const pad = (mx - mn) * 0.08; mx += pad; if (mn < 0) mn -= pad;
+  const X = i => pl + (w - pl - pr) * i / (n - 1), Y = v => pt + (h - pt - pb) * (1 - (v - mn) / (mx - mn));
+  let g = ''; for (let i = 0; i <= 3; i++) { const v = mn + (mx - mn) * i / 3, y = Y(v); g += '<line class="grid" x1="' + pl + '" x2="' + (w - pr) + '" y1="' + y + '" y2="' + y + '"/><text x="' + (pl - 6) + '" y="' + (y + 4) + '" text-anchor="end">' + kfmt(v) + '</text>'; }
+  const ls = series.map((s, k) => '<polyline class="l' + (k + 1) + '" points="' + s.v.map((v, i) => X(i).toFixed(1) + ',' + Y(v).toFixed(1)).join(' ') + '"/><circle class="d' + (k + 1) + '" cx="' + X(s.v.length - 1) + '" cy="' + Y(s.v[s.v.length - 1]) + '" r="3.5"/>').join('');
+  return '<div class="chartbox"><svg class="chart" viewBox="0 0 ' + w + ' ' + h + '" width="' + w + '" role="img" aria-label="Grafico: ' + esc(series.map(s => s.name).join(', ')) + '">' + g + ls + '<text x="' + pl + '" y="' + (h - 5) + '">' + esc(labels[0]) + '</text><text x="' + (w - pr) + '" y="' + (h - 5) + '" text-anchor="end">' + esc(labels[labels.length - 1]) + '</text></svg></div><div class="legend">' + series.map((s, k) => '<span><i style="background:var(--c' + (k + 1) + ')"></i>' + esc(s.name) + '</span>').join('') + '</div>';
+}
+function spark(vals) { const mn = Math.min.apply(null, vals), mx = Math.max.apply(null, vals), r = mx - mn || 1, w = 84, h = 24; return '<svg class="sparkline" viewBox="0 0 ' + w + ' ' + h + '" aria-hidden="true"><polyline points="' + vals.map((v, i) => (i * w / Math.max(1, vals.length - 1)).toFixed(1) + ',' + (h - 3 - (h - 6) * (v - mn) / r).toFixed(1)).join(' ') + '"/></svg>'; }
+function cw() { const m = $('main'); return Math.max(300, Math.min(760, (m ? m.clientWidth : 360) - 32)); }
+
+/* ---------- avvio ---------- */
+function startHTML() {
+  const saved = loadSaved(), d = E.DIFFS;
+  const info = { facile: 'Più cassa, concorrenti lenti a reagire, imprevisti rari.', realistico: '120.000 € in cassa, mercato saturo, costi come nella realtà.', spietato: '80.000 €, concorrenti aggressivi, costi più alti, banche più care.' };
+  return '<section class="start"><div><h1>Alta Pressione</h1><p class="lead">Hai rilevato una piccola azienda a Bassano: rivendita di gas tecnici, 2.600 bombole e un\'officina di collaudo. Conquista il Veneto zona per zona, riempi in casa, vinci le gare, tieni d\'occhio la cassa. Hai 10 anni: ogni turno è un mese.</p></div>' +
+    '<div class="card stack"><h3>Difficoltà</h3><div class="pick three">' + Object.keys(d).map(k => '<button class="opt" data-a="diff" data-v="' + k + '" aria-pressed="' + (UI.diff === k) + '"><b>' + d[k].label + '</b><span class="small muted">' + info[k] + '</span></button>').join('') + '</div>' +
+    '<div class="ctl"><label for="nm">Nome della tua azienda</label><input id="nm" type="text" maxlength="24" placeholder="La tua azienda" value="' + esc(UI.name) + '" data-c="nm"></div>' +
+    '<div class="row"><button class="primary" data-a="start">Inizia la partita</button>' + (saved ? '<button data-a="resume">Continua la partita salvata (' + esc(E.monthName(saved.t)) + ')</button>' : '') + '</div></div>' +
+    '<p class="small">Il gioco si salva da solo in questo browser. Nella sezione Altro trovi la guida.</p></section>';
+}
+
+/* ---------- pagina ---------- */
+function syncTab() { UI.tab = UI.scr === 'map' ? 'map' : UI.sub[UI.scr]; }
+function gameHTML() {
+  const P = S.player, m = E.metrics(S), yr = Math.floor(S.t / 12) + 1, stop = S.over || S.pending; syncTab();
+  const al = advisories().filter(a => a[0] !== 'good').length;
+  const hud = '<header class="hud"><div class="hudrow"><div class="brand"><span class="logo">' + ico('cyl') + '</span><div><b>' + esc(P.name) + '</b><span>' + E.MESI[S.t % 12].slice(0, 3) + ' ' + (E.START_YEAR + Math.floor(S.t / 12)) + ' · anno ' + yr + (yr <= 10 ? '/10' : '') + '</span></div></div>' +
+    '<div class="money"><div class="chip"><span>Cassa</span><b class="' + (P.cash < 0 ? 'neg' : '') + '">' + eur(P.cash) + '</b></div><div class="chip"><span>' + (P.own < 0.999 ? 'Tua quota' : 'Valore') + '</span><b>' + kfmt(m.mine) + ' €</b></div></div></div>' +
+    '<div class="hudrow"><button class="bell" data-a="sheet" data-v="alerts">' + (al ? '<i>' + al + '</i>' : '') + 'Avvisi</button><div class="time"><button data-a="next" data-n="3"' + (stop ? ' disabled' : '') + ' aria-label="Avanti di 3 mesi">+3</button><button data-a="next" data-n="12"' + (stop ? ' disabled' : '') + ' aria-label="Avanti di 12 mesi">+12</button><button class="primary" data-a="next" data-n="1"' + (stop ? ' disabled' : '') + '>Prossimo mese ▸</button></div></div></header>';
+  const nav = '<nav class="nav" aria-label="Sezioni">' + NAV.map(n => '<button data-a="scr" data-v="' + n[0] + '"' + (UI.scr === n[0] ? ' aria-current="page"' : '') + '>' + ico(n[2]) + n[1] + '</button>').join('') + '</nav>';
+  let body;
+  if (UI.scr === 'map') body = mapScreen();
+  else body = '<main class="scr"><div class="seg" role="group">' + SUBS[UI.scr].map(x => '<button data-a="sub" data-v="' + x[0] + '" aria-pressed="' + (UI.tab === x[0]) + '">' + x[1] + '</button>').join('') + '</div>' + TABS[UI.tab]() + '</main>';
+  return hud + '<div class="stage">' + body + sheetHTML() + '</div>' + nav + modalHTML();
+}
+
+function advisories() {
+  const P = S.player, m = E.metrics(S), o = E.outlook(S), pl = o.plan, out = [];
+  if (P.cash < 0) out.push(['bad', 'Sei in scoperto di ' + eur(-P.cash) + '. Il limite della banca è ' + eur(m.limit) + '. Rientra subito: anticipo fatture, prestito o meno spese.']);
+  else if (P.cash < 30000) out.push(['warn', 'Cassa bassa (' + eur(P.cash) + '). I clienti ti devono ' + eur(m.ar) + ': valuta l\'anticipo fatture.']);
+  if (pl.fFleet < 0.98) out.push(['bad', 'Ti mancano circa ' + num(pl.outNeed - pl.fleetAvail) + ' bombole: questo mese consegni solo il ' + Math.round(pl.fFleet * 100) + '% delle richieste.']);
+  else if (pl.fleetAvail > pl.outNeed * 1.4 && pl.fleetAvail - pl.outNeed > 400) out.push(['warn', 'Hai circa ' + num(pl.fleetAvail - pl.outNeed) + ' bombole ferme in deposito: capitale che non lavora.']);
+  pl.deps.forEach(d => { if (d.load > d.trucks + 0.02) out.push([P.outsource ? 'warn' : 'bad', 'Deposito di ' + E.ZMAP[d.zone].name + ': servono ' + d.load.toFixed(1).replace('.', ',') + ' camion, ne hai ' + d.trucks + '.' + (P.outsource ? ' Il resto va con trasportatori esterni, più cari.' : ' Una parte delle consegne salta.')]); else if (d.trucks - d.load > 1) out.push(['warn', 'Deposito di ' + E.ZMAP[d.zone].name + ': hai ' + d.trucks + ' camion ma ne basterebbero ' + Math.ceil(d.load) + '.']); });
+  const tc = o.test; if (tc.queue > tc.cap * 1.3 && tc.queue > 60) out.push(['warn', 'Collaudo intasato: ' + num(tc.queue) + ' bombole in coda, ne fai ' + num(tc.cap) + ' al mese. I clienti aspettano e si spostano.']);
+  else if (P.wc > 1 && o.testDemand < tc.cap * 0.65) out.push(['warn', 'Collaudo: hai operai per ' + num(tc.cap) + ' bombole al mese ma ne arrivano circa ' + num(o.testDemand) + '.']);
+  if (o.packDemand > o.packCap * 1.3) out.push(['warn', 'Pacchi: arrivano ordini per circa ' + o.packDemand.toFixed(1).replace('.', ',') + ' al mese, ne costruisci ' + o.packCap.toFixed(1).replace('.', ',') + '.']);
+  if (P.wc + P.wp >= E.SITES[P.sede.size].workers && (tc.queue > tc.cap * 1.1 || o.packDemand > o.packCap * 1.1)) out.push(['warn', 'Il capannone è pieno: ci stanno ' + E.SITES[P.sede.size].workers + ' operai e il lavoro cresce. Guarda Azienda, Investire.']);
+  if (o.mg.over > 0) out.push(['warn', 'Troppe cose da seguire da solo (' + o.mg.load.toFixed(1).replace('.', ',') + ' su ' + o.mg.cap.toFixed(1).replace('.', ',') + '): l\'officina rende meno e il servizio peggiora. Vai su Squadra.']);
+  E.ZONES.forEach(z => { if (P.sl[z.id] < 0.88 && pl.zw[z.id] > 20) out.push(['bad', z.name + ': servizio al ' + Math.round(P.sl[z.id] * 100) + '%. Sotto l\'85% i clienti se ne vanno.']); });
+  if (S.accts.bor.rel < 0.7) out.push(['warn', 'Il rapporto con Gruppo Borea si è raffreddato: ti manda meno bombole e meno ordini.']);
+  E.GASES.forEach(g => { if (S.gidx[g.id].v > 1.35) out.push(['warn', g.name + ': il costo è salito del ' + Math.round((S.gidx[g.id].v - 1) * 100) + '% sul normale. Controlla il margine nel listino.']); });
+  if (S.macro.rec > 0) out.push(['bad', 'Recessione industriale: meno gas alle officine e più clienti che non pagano, per circa ' + S.macro.rec + ' mesi.']);
+  if (!out.length) out.push(['good', 'Nessun allarme. Continua così.']);
+  return out.slice(0, 9);
+}
+
+/* ---------- mappa del Veneto ---------- */
+const MW = 1000, MH = 900, f1 = n => Math.round(n * 10) / 10;
+const OFF = { tre: [2, -5], ven: [3, 5] };
+const zx = z => 80 + (z.x + (OFF[z.id] ? OFF[z.id][0] : 0)) * 7.2, zy = z => 300 + (z.y + (OFF[z.id] ? OFF[z.id][1] : 0)) * 7.2;
+const ROADS = [['ver', 'vic'], ['vic', 'pad'], ['pad', 'ven'], ['ven', 'tre'], ['tre', 'bel'], ['bas', 'vic'], ['bas', 'pad'], ['bas', 'tre']];
+let mapBase = null;
+function rngOf(seed) { let x = seed >>> 0; return () => { x = (x * 1664525 + 1013904223) >>> 0; return x / 4294967296; }; }
+function regionMap() {
+  if (mapBase) return mapBase;
+  const r = rngOf(77), Z = E.ZMAP; let s = '<rect x="-700" y="-700" width="2400" height="2300" fill="#D5E8BC"/>';
+  // pianura a campi
+  for (let i = 0; i < 60; i++) { const x = r() * 1000, y = 330 + r() * 560, w = 40 + r() * 80, h = 26 + r() * 50; s += '<rect x="' + f1(x) + '" y="' + f1(y) + '" width="' + f1(w) + '" height="' + f1(h) + '" rx="5" fill="' + (r() < 0.5 ? '#CBE2AE' : '#DDEDC6') + '"/>'; }
+  // mare e laguna
+  s += '<path d="M1700,380 L1010,440 Q965,520 950,600 Q935,650 965,700 Q930,760 900,800 Q870,860 850,1600 L1700,1600 Z" fill="#8CC6EA"/><ellipse cx="948" cy="676" rx="34" ry="52" fill="#A9D8F2"/><ellipse cx="956" cy="676" rx="9" ry="16" fill="#E9DCC3"/>';
+  // lago di Garda
+  s += '<path d="M40,470 Q10,560 28,640 Q40,700 78,712 Q96,690 84,640 Q70,560 62,470 Z" fill="#8CC6EA" stroke="#B9DEF3" stroke-width="3"/>';
+  // montagne a nord
+  s += '<path d="M-700,-700 H1700 V250 Q1500,300 1300,250 Q1100,330 930,240 Q880,330 760,280 Q650,350 560,300 Q450,360 330,330 Q220,400 110,370 Q-100,430 -700,380 Z" fill="#B7CDA0"/>';
+  for (let i = 0; i < 46; i++) { const x = -40 + r() * 1100, y = -40 + r() * 300, h = 26 + r() * 34; if (Math.hypot(x - zx(Z.bel), y - zy(Z.bel)) < 60) continue; s += '<path d="M' + f1(x - h * 0.8) + ',' + f1(y + h * 0.5) + ' L' + f1(x) + ',' + f1(y - h * 0.5) + ' L' + f1(x + h * 0.8) + ',' + f1(y + h * 0.5) + ' Z" fill="#9DB58A"/><path d="M' + f1(x - h * 0.22) + ',' + f1(y - h * 0.22) + ' L' + f1(x) + ',' + f1(y - h * 0.5) + ' L' + f1(x + h * 0.22) + ',' + f1(y - h * 0.22) + ' Z" fill="#F4F6F2"/>'; }
+  // colline
+  [[575, 800, 34], [410, 690, 28], [640, 430, 26], [700, 420, 20]].forEach(c => { s += '<ellipse cx="' + c[0] + '" cy="' + c[1] + '" rx="' + c[2] + '" ry="' + f1(c[2] * 0.6) + '" fill="#B9D49C"/><ellipse cx="' + (c[0] - 6) + '" cy="' + (c[1] - 4) + '" rx="' + f1(c[2] * 0.5) + '" ry="' + f1(c[2] * 0.3) + '" fill="#C8DFAE"/>'; });
+  // fiumi: Adige, Brenta, Piave
+  const riv = d => '<path d="' + d + '" fill="none" stroke="#B9DEF3" stroke-width="9" stroke-linecap="round"/><path d="' + d + '" fill="none" stroke="#8CC6EA" stroke-width="5" stroke-linecap="round"/>';
+  s += riv('M150,250 Q120,500 ' + zx(Z.ver) + ',' + zy(Z.ver) + ' Q300,860 600,870 Q800,880 880,860') + riv('M505,250 Q500,340 ' + zx(Z.bas) + ',' + zy(Z.bas) + ' Q590,600 680,700 Q800,770 910,790') + riv('M' + zx(Z.bel) + ',' + zy(Z.bel) + ' Q820,300 880,430 Q930,520 960,560');
+  // strade
+  ROADS.forEach(p => { const a = Z[p[0]], b = Z[p[1]]; s += '<line x1="' + f1(zx(a)) + '" y1="' + f1(zy(a)) + '" x2="' + f1(zx(b)) + '" y2="' + f1(zy(b)) + '" stroke="#C9BFAE" stroke-width="9" stroke-linecap="round"/><line x1="' + f1(zx(a)) + '" y1="' + f1(zy(a)) + '" x2="' + f1(zx(b)) + '" y2="' + f1(zy(b)) + '" stroke="#F6F1E6" stroke-width="5" stroke-linecap="round"/>'; });
+  // città
+  const roofs = ['#D98B5F', '#C97B55', '#E0A070', '#B96F4E', '#A9B2BF', '#CF8F6A'];
+  E.ZONES.forEach(z => { const cx = zx(z), cy = zy(z), R = 24 + 14 * z.w, n = Math.round(16 + 22 * z.w);
+    s += '<circle cx="' + f1(cx) + '" cy="' + f1(cy) + '" r="' + f1(R + 8) + '" fill="#EDE6D8"/>';
+    for (let i = 0; i < n; i++) { const a = r() * 6.283, d = Math.sqrt(r()) * R, w = 7 + r() * 9, h = 6 + r() * 8, x = cx + Math.cos(a) * d - w / 2, y = cy + Math.sin(a) * d - h / 2; s += '<rect x="' + f1(x + 1.8) + '" y="' + f1(y + 1.8) + '" width="' + f1(w) + '" height="' + f1(h) + '" fill="rgba(60,45,30,.2)"/><rect x="' + f1(x) + '" y="' + f1(y) + '" width="' + f1(w) + '" height="' + f1(h) + '" rx="1" fill="' + roofs[Math.floor(r() * roofs.length)] + '"/>'; } });
+  return (mapBase = s);
+}
+function zoneShare(z, pl) { const P = S.player; let m = 0, mine = 0; E.SEGS.forEach(s => { const mk = E.market(S, z.id, s.id); m += mk; mine += mk * P.share[z.id][s.id]; }); return m > 0 ? mine / m : 0; }
+const curView = () => UI.view || (UI.view = { x: 0, y: 0, k: 0.4 });
+function mapScreen() {
+  const P = S.player, v = curView(), pl = E.distPlan(S), ik = f1(100 / v.k) / 100; let pins = '';
+  // collegamenti dai depositi alle zone servite
+  let links = ''; E.ZONES.forEach(z => { const nd = E.nearestDepot(S, z.id), dz = E.ZMAP[nd.dep.zone]; if (nd.dep.zone !== z.id && (pl.zw[z.id] || 0) > 5) links += '<line x1="' + f1(zx(dz)) + '" y1="' + f1(zy(dz)) + '" x2="' + f1(zx(z)) + '" y2="' + f1(zy(z)) + '" stroke="#16283A" stroke-width="2.5" stroke-dasharray="3 7" stroke-linecap="round" opacity=".55"/>'; });
+  E.ZONES.forEach(z => {
+    const x = f1(zx(z)), y = f1(zy(z)), sh = zoneShare(z, pl), dep = P.depots.find(d => d.zone === z.id), sl = P.sl[z.id], reps = P.reps[z.id] || 0;
+    const st = (pl.zw[z.id] || 0) < 5 ? 'none' : sl < 0.88 ? 'bad' : sl < 0.95 ? 'warn' : 'ok', C = 2 * Math.PI * 19, zn = z.name.split('-')[0], tw = zn.length * 7.4 + 20;
+    pins += '<g class="pin zone" data-a="zone" data-z="' + z.id + '" data-x="' + x + '" data-y="' + y + '" transform="translate(' + x + ',' + y + ') scale(' + ik + ')">' +
+      '<circle class="zb" r="24"/><circle class="zr" r="19"/><circle class="zs ' + st + '" r="19" stroke-dasharray="' + f1(C * Math.min(1, sh)) + ' ' + f1(C) + '" transform="rotate(-90)"/><text class="zt" y="5" text-anchor="middle">' + Math.round(sh * 100) + '%</text>' +
+      '<g transform="translate(0,40)"><rect class="zl" x="' + (-tw / 2) + '" y="-11" width="' + tw + '" height="22" rx="11"/><text class="zn" y="4" text-anchor="middle">' + zn + '</text></g>' +
+      (dep ? '<g transform="translate(-28,-30)"><rect class="dp" x="-15" y="-13" width="30" height="24" rx="6"/><path class="dpi" d="M-9,6 V-3 L0,-8 L9,-3 V6 Z M-3,6 V0 H3 V6"/><circle class="db" cx="14" cy="-12" r="9"/><text class="dbt" x="14" y="-8" text-anchor="middle">' + dep.trucks + '</text></g>' : '') +
+      (reps ? '<g transform="translate(28,-28)"><circle class="rp" r="12"/><circle class="rpi" cy="-3" r="3.4"/><path class="rpi" d="M-6,7 a6,5 0 0 1 12,0 Z"/><circle class="db" cx="11" cy="-10" r="8"/><text class="dbt" x="11" y="-6.5" text-anchor="middle">' + reps + '</text></g>' : '') + '</g>';
+  });
+  const note = S.t === 0 ? '<div class="mapnote"><b>Il tuo territorio</b><span class="small">Il numero è la tua quota di mercato nella zona. Tocca una zona per gestirla. Casetta = deposito e camion, omino = venditori.</span></div>' :
+    '<div class="maplegend"><span><i style="background:#1B9455"></i>Servizio buono</span><span><i style="background:#F0A020"></i>Lento</span><span><i style="background:#D23F2C"></i>Scarso</span></div>';
+  return '<div class="mapwrap"><svg id="map" role="img" aria-label="Mappa del Veneto con le tue zone"><g id="world" transform="translate(' + f1(v.x) + ',' + f1(v.y) + ') scale(' + v.k + ')">' + regionMap() + links + pins + '</g></svg>' +
+    '<div class="mapui zoom"><button data-a="zoom" data-v="1" aria-label="Ingrandisci">+</button><button data-a="zoom" data-v="-1" aria-label="Rimpicciolisci">−</button></div>' + note + '</div>';
+}
+function mapSize() { const el = $('#map'), r = el ? el.getBoundingClientRect() : null; return r && r.width > 10 && r.height > 10 ? r : { left: 0, top: 0, width: 400, height: 520 }; }
+const BB = { x0: 94, x1: 922, y0: 84, y1: 746, L: 38, R: 40, T: 58, B: 54 };
+function mapFit(r) { const n = $('.mapnote'), H = Math.max(200, r.height - (n ? n.offsetHeight + 20 : 40)); return { H: H, fit: Math.max(0.2, Math.min((r.width - BB.L - BB.R) / (BB.x1 - BB.x0), (H - BB.T - BB.B) / (BB.y1 - BB.y0))) }; }
+const clampv = (x, a, b) => Math.max(Math.min(a, b), Math.min(Math.max(a, b), x));
+function mapApply() {
+  const g = $('#world'); if (!g) return; const r = mapSize(), v = curView(), F = mapFit(r), fit = F.fit, H = F.H;
+  if (!v.init) { v.k = fit; v.x = BB.L + ((r.width - BB.L - BB.R) - (BB.x1 - BB.x0) * fit) / 2 - BB.x0 * fit; v.y = BB.T + ((H - BB.T - BB.B) - (BB.y1 - BB.y0) * fit) / 2 - BB.y0 * fit; v.init = 1; }
+  v.k = Math.max(fit, Math.min(3, v.k));
+  v.x = clampv(v.x, BB.L - BB.x0 * v.k, r.width - BB.R - BB.x1 * v.k);
+  v.y = clampv(v.y, BB.T - BB.y0 * v.k, H - BB.B - BB.y1 * v.k);
+  g.setAttribute('transform', 'translate(' + f1(v.x) + ',' + f1(v.y) + ') scale(' + v.k + ')');
+  const ik = Math.round(100 / v.k) / 100;
+  document.querySelectorAll('#world .pin').forEach(p => p.setAttribute('transform', 'translate(' + at(p, 'x') + ',' + at(p, 'y') + ') scale(' + ik + ')'));
+}
+function zoomAt(f, cx, cy) { const v = curView(), r = mapSize(), k0 = v.k; v.k = Math.max(mapFit(r).fit, Math.min(3, k0 * f)); const kk = v.k / k0; v.x = cx - (cx - v.x) * kk; v.y = cy - (cy - v.y) * kk; mapApply(); }
+const PZ = { pts: new Map(), moved: 0, dist: 0, dragT: 0 };
+function pinch() { const a = Array.from(PZ.pts.values()); return { d: Math.hypot(a[0][0] - a[1][0], a[0][1] - a[1][1]), cx: (a[0][0] + a[1][0]) / 2, cy: (a[0][1] + a[1][1]) / 2 }; }
+document.addEventListener('pointerdown', ev => { if (!ev.target.closest || !ev.target.closest('#map')) return; PZ.pts.set(ev.pointerId, [ev.clientX, ev.clientY]); if (PZ.pts.size === 1) PZ.moved = 0; if (PZ.pts.size === 2) PZ.dist = pinch().d; });
+document.addEventListener('pointermove', ev => {
+  const p = PZ.pts.get(ev.pointerId); if (!p) return; const dx = ev.clientX - p[0], dy = ev.clientY - p[1]; PZ.pts.set(ev.pointerId, [ev.clientX, ev.clientY]);
+  if (PZ.pts.size === 1) { PZ.moved += Math.abs(dx) + Math.abs(dy); if (PZ.moved > 6) { const v = curView(); v.x += dx; v.y += dy; mapApply(); } }
+  else if (PZ.pts.size === 2) { const q = pinch(), r = mapSize(); if (PZ.dist > 0) zoomAt(q.d / PZ.dist, q.cx - r.left, q.cy - r.top); PZ.dist = q.d; PZ.moved += 20; }
+});
+const pzUp = ev => { if (PZ.pts.delete(ev.pointerId) && PZ.moved > 8) PZ.dragT = Date.now(); if (PZ.pts.size < 2) PZ.dist = 0; };
+document.addEventListener('pointerup', pzUp); document.addEventListener('pointercancel', pzUp);
+document.addEventListener('wheel', ev => { if (!ev.target.closest || !ev.target.closest('#map')) return; ev.preventDefault(); const r = mapSize(); zoomAt(ev.deltaY < 0 ? 1.15 : 1 / 1.15, ev.clientX - r.left, ev.clientY - r.top); }, { passive: false });
+
+/* ---------- schede dal basso ---------- */
+function zoneSheet(zid) {
+  const P = S.player, z = E.ZMAP[zid], nd = E.nearestDepot(S, zid), dep = P.depots.find(d => d.zone === zid), I = S.macro.infl, pl = E.distPlan(S);
+  const rows = E.SEGS.map(s => { const mk = E.market(S, zid, s.id), sh = P.share[zid][s.id], tg = E.shareIn(S, zid, s.id, 12), lock = s.cert && !P.certs[s.cert];
+    return '<tr><td>' + s.name + (lock ? '<br><span class="small warn">serve: ' + E.CERTS[s.cert].name + '</span>' : '') + (s.soft && !P.certs[s.soft] ? '<br><span class="small muted">meglio con: ' + E.CERTS[s.soft].name + '</span>' : '') + '</td><td class="r">' + num(mk) + '</td><td class="r"><b>' + pct(sh, 1) + '</b></td><td class="r ' + (tg > sh + 0.004 ? 'good' : tg < sh - 0.004 ? 'bad' : 'muted') + '">' + (tg > sh + 0.004 ? '▲ ' : tg < sh - 0.004 ? '▼ ' : '') + pct(tg, 1) + '</td></tr>'; }).join('');
+  const comps = E.COMPS.map(c => { const a = S.comps[c.id].adj[zid]; return '<tr><td>' + c.name + '<br><span class="small muted">' + c.tag + '</span></td><td class="r">' + (c.str[zid] >= 1.1 ? 'forte' : c.str[zid] >= 0.7 ? 'presente' : 'debole') + '</td><td class="r ' + (a < 0.97 ? 'bad' : '') + '">' + (a < 0.995 ? '−' + Math.round((1 - a) * 100) + '% sui prezzi' : 'listino pieno') + '</td></tr>'; }).join('');
+  const repCost = E.SAL.rep * I, n = P.reps[zid] || 0;
+  let depBox;
+  if (dep) { const dd = pl.deps.find(x => x.id === dep.id); depBox = '<div class="ctl"><span class="lbl">Camion del deposito · ne servono ' + dd.load.toFixed(1).replace('.', ',') + '</span>' + step('trucks', 'data-id="' + dep.id + '"', dep.trucks + (dep.trucks === 1 ? ' camion' : ' camion')) + '<span class="hint">Ogni camion con autista costa ' + eur((E.TRUCK_COST + E.SAL.driver) * I) + ' al mese.' + (dep.home ? ' Questa è la sede.' : '') + '</span>' + (dep.home ? '' : '<div>' + conf('cdep:' + dep.id, 'Chiudi il deposito', 'closedep', 'data-id="' + dep.id + '"', 'Sì, chiudi', 'danger') + '</div>') + '</div>'; }
+  else depBox = '<div class="ctl"><span class="lbl">Deposito</span><span class="small">Oggi questa zona è servita da ' + E.ZMAP[nd.dep.zone].name + ', a ' + Math.round(nd.d) + ' km. Un deposito qui ti rende "di casa": più clienti e consegne più corte.</span><button data-a="opendep" data-z="' + zid + '">Apri un deposito · ' + eur(E.DEPOT_CAPEX * I) + '</button><span class="hint">Poi ' + eur((E.DEPOT_RENT + E.SAL.depot) * I) + ' al mese tra affitto e magazziniere.</span></div>';
+  return '<div class="stats"><div><span>Servizio</span><b class="' + (P.sl[zid] < 0.88 ? 'bad' : P.sl[zid] < 0.95 ? 'warn' : 'good') + '">' + pct(P.sl[zid]) + '</b></div><div><span>Bombole richieste</span><b>' + num(pl.zw[zid] || 0) + '</b></div><div><span>Deposito più vicino</span><b>' + Math.round(nd.d) + ' km</b></div><div><span>Venditori</span><b>' + n + '</b></div></div>' +
+    '<div class="tw"><table><thead><tr><th>Clienti</th><th class="r">Mercato</th><th class="r">Tua quota</th><th class="r">Tra un anno</th></tr></thead><tbody>' + rows + '</tbody></table></div><p class="hint">Mercato in bombole al mese. "Tra un anno" è la quota che avrai con i prezzi, i venditori e il servizio di oggi. I clienti che hai restano se l\'offerta regge; quelli nuovi arrivano solo con i venditori.</p>' +
+    '<div class="controls"><div class="ctl"><span class="lbl">Venditori in zona</span>' + step('reps', 'data-z="' + zid + '"', n + (n === 1 ? ' venditore' : ' venditori')) + '<span class="hint">Ognuno costa ' + eur(repCost) + ' al mese più l\'1,5% delle vendite. Senza venditori i clienti nuovi non ti conoscono.</span></div>' + depBox + '</div>' +
+    '<details><summary>Concorrenti in zona</summary><div class="tw" style="margin-top:8px"><table><tbody>' + comps + '</tbody></table></div><p class="hint">Se porti via troppi clienti, abbassano i prezzi.</p></details>';
+}
+function sheetHTML() {
+  const sh0 = UI.sheet; if (!sh0) return ''; let title = '', sub = '', body = '';
+  if (sh0.t === 'alerts') { title = 'Avvisi'; sub = E.monthName(S.t); body = '<ul class="alerts">' + advisories().map(a => '<li><i class="dot ' + a[0] + '"></i><span>' + esc(a[1]) + '</span></li>').join('') + '</ul>'; }
+  else if (sh0.t === 'zone') { const z = E.ZMAP[sh0.z]; if (!z) { UI.sheet = null; return ''; } title = z.name; sub = 'La tua quota: ' + pct(zoneShare(z), 1) + ' del mercato'; body = zoneSheet(z.id); }
+  return '<div class="backdrop" data-a="closesheet"></div><aside class="sheet" role="dialog" aria-label="' + esc(title) + '"><div class="sheethead"><div><h3>' + esc(title) + '</h3><span class="small muted">' + esc(sub) + '</span></div><button data-a="closesheet" aria-label="Chiudi">×</button></div><div class="sheetbody">' + body + '</div></aside>';
+}
+
+/* ---------- vendite ---------- */
+function tabLis() {
+  const P = S.player, pl = E.distPlan(S);
+  const cards = E.GASES.map(g => {
+    const ref = E.refPrice(S, g.id), mine = ref * P.price[g.id], cost = E.unitCost(S, g.id), mar = mine - cost, ix = S.gidx[g.id].v;
+    return '<div class="card stack"><div class="row sp"><h3>' + g.name + '</h3><span class="pill ' + (P.lines[g.id] ? 'good' : '') + '">' + (P.lines[g.id] ? 'Riempi in casa' : 'Rivendita') + '</span></div><p class="small muted">' + g.note + '</p>' +
+      '<div class="ctl"><span class="lbl">Il tuo prezzo a bombola</span>' + step('price', 'data-g="' + g.id + '"', eur2(mine) + ' <small class="' + (P.price[g.id] > 1.005 ? 'warn' : P.price[g.id] < 0.995 ? 'good' : 'muted') + '">' + (P.price[g.id] >= 1 ? '+' : '−') + Math.round(Math.abs(P.price[g.id] - 1) * 100) + '%</small>', 'Abbassa il prezzo', 'Alza il prezzo') + '<span class="hint">Prezzo medio di mercato ' + eur2(ref) + '</span></div>' +
+      '<div class="stats"><div><span>Ti costa</span><b>' + eur2(cost) + '</b></div><div><span>Margine</span><b class="' + sgn(mar) + '">' + eur2(mar) + '</b></div><div><span>Vendute/mese</span><b>' + num(pl.delG[g.id]) + '</b></div><div><span>Costo all\'origine</span><b class="' + (ix > 1.15 ? 'bad' : ix < 0.9 ? 'good' : '') + '">' + (ix >= 1 ? '+' : '−') + Math.round(Math.abs(ix - 1) * 100) + '%</b></div></div></div>';
+  }).join('');
+  const fee = '<div class="card stack"><h3>Noleggio delle bombole</h3><p class="small">Le bombole sono tue: ogni cliente paga un canone al mese per ognuna che tiene. Oggi ne hai circa <b>' + num(pl.outAct) + '</b> dai clienti: sono <b>' + eur(pl.rental) + '</b> al mese.</p><div class="ctl"><span class="lbl">Canone mensile a bombola</span>' + step('fee', '', eur2(P.fee * S.macro.infl), 'Abbassa il canone', 'Alza il canone') + '<span class="hint">Il mercato sta intorno a ' + eur2(5.5 * S.macro.infl) + '. Un canone alto pesa soprattutto sulle officine.</span></div></div>';
+  return '<section><p class="muted small">Il prezzo vale per tutte le zone. I clienti confrontano il tuo listino con quello dei concorrenti: le officine guardano molto il prezzo, sanità e laboratori molto meno.</p><div class="grid two">' + cards + fee + '</div></section>';
+}
+function tabZon() {
+  const P = S.player, pl = E.distPlan(S);
+  const rows = E.ZONES.map(z => '<tr><td><button class="lnk" data-a="zone" data-z="' + z.id + '">' + z.name + '</button></td>' + E.SEGS.map(s => { const v = P.share[z.id][s.id]; return '<td class="r ' + (v < 0.0005 ? 'muted' : '') + '">' + (v < 0.0005 ? '—' : pct(v, 1)) + '</td>'; }).join('') + '<td class="r ' + (P.sl[z.id] < 0.88 ? 'bad' : '') + '">' + pct(P.sl[z.id]) + '</td><td class="r">' + (P.reps[z.id] || 0) + '</td><td class="r">' + num(pl.zw[z.id] || 0) + '</td></tr>').join('');
+  return '<section><div class="card"><h3>Quote di mercato per zona</h3><div class="tw"><table><thead><tr><th>Zona</th>' + E.SEGS.map(s => '<th class="r">' + s.name.split(' ')[0] + '</th>').join('') + '<th class="r">Servizio</th><th class="r">Vend.</th><th class="r">Bombole</th></tr></thead><tbody>' + rows + '</tbody></table></div><p class="hint">Tocca il nome di una zona per gestirla.</p></div>' +
+    '<div class="grid two">' + E.SEGS.map(s => '<div class="card"><h3>' + s.name + '</h3><p class="small">' + s.desc + '</p><p class="small muted">Pagano a ' + s.dso + ' giorni · tengono ogni bombola circa ' + String(s.rot).replace('.', ',') + ' mesi' + (s.pm !== 1 ? ' · prezzi ' + (s.pm > 1 ? '+' : '') + Math.round((s.pm - 1) * 100) + '% sul listino' : '') + '</p></div>').join('') + '</div></section>';
+}
+function tabCon() {
+  const P = S.player;
+  const rows = P.contracts.map(c => '<tr><td>' + esc(c.name) + '<br><span class="small muted">' + E.SMAP[c.seg].name + '</span></td><td class="r">' + num(c.vol) + '</td><td class="r">' + (c.pIdx < 1 ? '−' + Math.round((1 - c.pIdx) * 100) + '%' : 'pieno') + '</td><td class="r">' + c.months + ' mesi</td></tr>').join('');
+  return '<section><div class="card"><h3>Contratti vinti in gara</h3>' + (rows ? '<div class="tw"><table><thead><tr><th>Cliente</th><th class="r">Bombole/mese</th><th class="r">Prezzo</th><th class="r">Scade tra</th></tr></thead><tbody>' + rows + '</tbody></table></div>' : '<p class="muted">Nessun contratto. Le gare arrivano ogni qualche mese: grandi clienti che cercano un fornitore unico per 2-4 anni.</p>') + '<p class="hint">Un contratto ti impegna a consegnare ogni mese: servono bombole e camion in più.</p></div></section>';
+}
+
+/* ---------- officina ---------- */
+function tabCol() {
+  const P = S.player, o = E.outlook(S), tc = o.test, I = S.macro.infl, last = S.hist[S.hist.length - 1];
+  const price = E.TEST_REF * I * P.testIdx, costW = E.SAL.worker * I / Math.max(1, tc.prod);
+  return '<section><div class="tiles t4"><div class="tile"><span>Capacità</span><b>' + num(tc.cap) + '</b><small>bombole al mese</small></div><div class="tile"><span>In coda</span><b class="' + (tc.queue > tc.cap * 1.3 ? 'bad' : '') + '">' + num(tc.queue) + '</b><small>di cui tue ' + num(P.q.own) + '</small></div><div class="tile"><span>Arrivi previsti</span><b>' + num(o.testDemand) + '</b><small>al mese, a lotti</small></div><div class="tile"><span>Fatti il mese scorso</span><b>' + (last ? num(last.tests) : '—') + '</b><small>' + num(tc.prod) + ' a operaio</small></div></div>' +
+    '<div class="card stack"><h3>Reparto collaudo</h3><div class="controls"><div class="ctl"><span class="lbl">Operai al collaudo</span>' + step('workers', 'data-k="test"', P.wc + (P.wc === 1 ? ' operaio' : ' operai')) + '<span class="hint">' + eur(E.SAL.worker * I) + ' al mese ciascuno. Licenziare costa una mensilità. Nel capannone ci stanno ' + E.SITES[P.sede.size].workers + ' operai in tutto: ne hai ' + (P.wc + P.wp) + '.</span></div>' +
+    '<div class="ctl"><span class="lbl">Prezzo di un collaudo</span>' + step('idx', 'data-k="test"', eur2(price), 'Abbassa il prezzo', 'Alza il prezzo') + '<span class="hint">Mercato ' + eur2(E.TEST_REF * I) + '. A te costa circa ' + eur2(9 * I + costW) + ' tra materiali e manodopera.</span></div>' +
+    tgl('smallOk', P.smallOk, 'Accetta anche i piccoli clienti', 'Pagano il 20% in più, ma arrivano due bombole alla volta: più sono, più l\'officina rallenta.') + tgl('ownTestOut', P.ownTestOut, 'Manda fuori i collaudi delle tue bombole', 'Costa ' + eur2(E.TEST_OUT * I) + ' a bombola invece di occupare i tuoi operai. Ogni mese ne scadono circa ' + num(P.fleet.n / 120) + '.') + '</div>' +
+    (P.barcode === 'manuale' ? '<p class="hint warn">I barcode sul portale del cliente si aggiornano a mano: −5% di produttività. Il gestionale lo farebbe da solo.</p>' : '') + (P.mods.prod ? '<p class="hint warn">Officina rallentata (' + Math.round((1 - P.mods.prod.f) * 100) + '% in meno) per ancora ' + P.mods.prod.m + ' mesi.</p>' : '') + '</div></section>';
+}
+function tabPac() {
+  const P = S.player, o = E.outlook(S), I = S.macro.infl, last = S.hist[S.hist.length - 1];
+  let qn = 0, qr = 0; E.ACCTS.forEach(a => { qn += P.qp[a.id].nw; qr += P.qp[a.id].rv; });
+  const mat = (6900 - (P.up.telai ? 900 : 0)) * I * S.macro.steel, price = E.PACK_REF * I * P.packIdx;
+  return '<section><div class="tiles t4"><div class="tile"><span>Capacità</span><b>' + o.packCap.toFixed(1).replace('.', ',') + '</b><small>pacchi al mese</small></div><div class="tile"><span>Ordini in coda</span><b class="' + (qn + 0.25 * qr > o.packCap * 2 ? 'bad' : '') + '">' + qn + '</b><small>più ' + qr + ' revisioni</small></div><div class="tile"><span>Ordini previsti</span><b>' + o.packDemand.toFixed(1).replace('.', ',') + '</b><small>al mese</small></div><div class="tile"><span>Costruiti il mese scorso</span><b>' + (last ? last.packs : '—') + '</b><small>' + (last ? last.revs + ' revisioni' : '') + '</small></div></div>' +
+    '<div class="card stack"><h3>Reparto pacchi bombole</h3><p class="small">Un pacco è un telaio con 16 bombole collegate. Lo comprano le aziende del gas per i grandi consumatori. Una revisione occupa un quarto del tempo di un pacco nuovo.</p><div class="controls"><div class="ctl"><span class="lbl">Operai ai pacchi</span>' + step('workers', 'data-k="pack"', P.wp + (P.wp === 1 ? ' operaio' : ' operai')) + '<span class="hint">' + eur(E.SAL.worker * I) + ' al mese ciascuno. Posto nel capannone: ' + (P.wc + P.wp) + ' su ' + E.SITES[P.sede.size].workers + '.</span></div>' +
+    '<div class="ctl"><span class="lbl">Prezzo di un pacco nuovo</span>' + step('idx', 'data-k="pack"', eur(price), 'Abbassa il prezzo', 'Alza il prezzo') + '<span class="hint">Mercato ' + eur(E.PACK_REF * I) + '. Materiali ' + eur(mat) + ' (l\'acciaio oggi è a ' + (S.macro.steel >= 1 ? '+' : '−') + Math.round(Math.abs(S.macro.steel - 1) * 100) + '%). Revisione ' + eur(E.REV_REF * I * P.packIdx) + '.</span></div></div></div></section>';
+}
+function tabCli() {
+  const P = S.player;
+  const cards = E.ACCTS.map(a => { const st = S.accts[a.id], g = E.acctGrow(S, a), rel = st.rel;
+    return '<div class="card stack"><div class="row sp"><h3>' + a.name + '</h3><span class="pill ' + (rel >= 1.05 ? 'good' : rel < 0.75 ? 'bad' : rel < 0.95 ? 'warn' : '') + '">' + (rel >= 1.05 ? 'Rapporto ottimo' : rel < 0.75 ? 'Rapporto freddo' : rel < 0.95 ? 'Rapporto tiepido' : 'Rapporto buono') + '</span></div><p class="small muted">' + a.note + ' Paga a ' + st.dso + ' giorni.</p>' +
+      '<div class="ctl"><span class="lbl">Collaudi: ti manda il ' + pct(st.ts) + ' delle sue ' + num(a.test * g) + ' bombole l\'anno' + (st.tb > 0 ? ' (accordo per altri ' + st.tbm + ' mesi)' : '') + '</span><div class="bar"><i style="width:' + Math.min(100, st.ts * 100) + '%"></i></div></div>' +
+      '<div class="ctl"><span class="lbl">Pacchi: ti ordina il ' + pct(st.ps) + ' dei suoi ' + Math.round(a.pack * g) + ' pacchi l\'anno</span><div class="bar"><i style="width:' + Math.min(100, st.ps * 100) + '%"></i></div></div>' +
+      '<p class="small">In coda oggi: ' + num(P.q.ext[a.id]) + ' bombole, ' + P.qp[a.id].nw + ' pacchi, ' + P.qp[a.id].rv + ' revisioni.</p></div>'; }).join('');
+  return '<section><p class="muted small">I clienti dell\'officina sono altre aziende del gas. Ti danno più lavoro se sei puntuale, se il prezzo è giusto e se il rapporto è buono. La fiducia cresce piano, con anni di consegne in orario, e si perde in fretta con i ritardi. Due di loro sono anche tuoi concorrenti nella vendita di gas: se gli porti via troppi clienti, se ne ricordano.</p><div class="grid two">' + cards + '</div></section>';
+}
+function tabInv() {
+  const P = S.player, I = S.macro.infl, pl = E.distPlan(S);
+  const ups = Object.keys(E.UPG).map(k => { const u = E.UPG[k]; return '<div class="card stack"><div class="row sp"><h3>' + u.name + '</h3><span class="pill ' + (P.up[k] ? 'good' : '') + '">' + (P.up[k] ? 'Fatto' : eur(u.cost * I)) + '</span></div><p class="small">' + u.desc + '</p>' + (P.up[k] ? '' : u.need && P.sede.size < u.need ? '<p class="hint warn">Non ci sta: serve almeno il capannone medio (Azienda, Investire).</p>' : '<div><button class="primary" data-a="upg" data-k="' + k + '">Investi</button></div>') + '</div>'; }).join('');
+  const lines = E.GASES.map(g => {
+    if (!g.line) return '<div class="card stack"><div class="row sp"><h3>' + g.name + '</h3><span class="pill">Solo rivendita</span></div><p class="small muted">Per questo gas non esiste una linea alla tua portata: lo compri già in bombola.</p></div>';
+    const q = pl.delG[g.id], fix = (g.line > 100000 ? 3500 : 1800) * I, liq = g.liq * I * S.gidx[g.id].v + 2.4 * I, save = P.lines[g.id] ? 0 : q * (E.unitCost(S, g.id) - liq) - fix - Math.ceil(q / 2600) * E.SAL.worker * I * 0.5, c = E.lineCost(S, g.id);
+    return '<div class="card stack"><div class="row sp"><h3>' + g.name + '</h3><span class="pill ' + (P.lines[g.id] ? 'good' : '') + '">' + (P.lines[g.id] ? 'Linea attiva' : eur(c)) + '</span></div>' + (P.lines[g.id] ? '<p class="small">Compri il liquido in cisterna e riempi in casa: ' + eur2(liq) + ' a bombola.</p>' :
+      '<p class="small">Serbatoio, pompa e rampa di riempimento. Il gas ti costerebbe ' + eur2(liq) + ' a bombola invece di ' + eur2(E.unitCost(S, g.id)) + ', più ' + eur(fix) + ' al mese di costi fissi.</p><p class="small">Con le ' + num(q) + ' bombole che vendi oggi: <b class="' + sgn(save) + '">' + (save >= 0 ? 'risparmi circa ' + eur(save) : 'perderesti circa ' + eur(-save)) + ' al mese</b>' + (save > 0 ? ', si ripaga in ' + Math.ceil(c / save) + ' mesi.' : '.') + '</p><div><button class="primary" data-a="line" data-g="' + g.id + '">Costruisci la linea</button></div>') + '</div>'; }).join('');
+  const certs = Object.keys(E.CERTS).map(k => { const c = E.CERTS[k]; return '<div class="card stack"><div class="row sp"><h3>' + c.name + '</h3><span class="pill ' + (P.certs[k] ? 'good' : '') + '">' + (P.certs[k] ? 'Ottenuta' : eur(c.cost * I)) + '</span></div><p class="small">' + c.desc + '</p><p class="small muted">Mantenerla costa ' + eur(c.fee * I) + ' al mese.</p><div>' + (P.certs[k] ? conf('dcert:' + k, 'Lascia scadere', 'dropcert', 'data-k="' + k + '"', 'Sì, rinuncia', 'danger') : '<button class="primary" data-a="cert" data-k="' + k + '">Ottieni</button>') + '</div></div>'; }).join('');
+  return '<section><h2>Officina</h2><div class="grid two">' + ups + '</div><h2>Linee di riempimento</h2><p class="muted small">Nel tuo capannone ci stanno ' + E.SITES[P.sede.size].lines + ' linee. Senza linea compri le bombole già piene da Gruppo Borea. Con la linea guadagni molto di più su ogni bombola, ma Borea è anche il tuo primo cliente in officina: più gas riempi in casa, meno collaudi e pacchi ti manda.</p><div class="grid two">' + lines + '</div><h2>Certificazioni</h2><div class="grid two">' + certs + '</div></section>';
+}
+
+/* ---------- azienda ---------- */
+function tabPan() {
+  const P = S.player, m = E.metrics(S), h = S.hist, last = h[h.length - 1], prev = h[h.length - 2];
+  const dl = (a, b) => '<small class="' + sgn(a - b) + '">' + (a - b >= 0 ? '+' : '') + kfmt(a - b) + ' sul mese prima</small>', none = '<small>&nbsp;</small>';
+  const tiles = [['Ricavi (ultimo mese)', last ? eur(last.rev) : '—', last && prev ? dl(last.rev, prev.rev) : none], ['EBITDA (ultimo mese)', last ? '<span class="' + sgn(last.ebitda) + '">' + eur(last.ebitda) + '</span>' : '—', last && prev ? dl(last.ebitda, prev.ebitda) : none],
+    ['Cassa', '<span class="' + (P.cash < 0 ? 'bad' : '') + '">' + eur(P.cash) + '</span>', last ? '<small class="' + sgn(last.flow) + '">' + (last.flow >= 0 ? '+' : '') + kfmt(last.flow) + ' nel mese</small>' : none], ['Crediti verso clienti', eur(m.ar), '<small>anticipati dalla banca: ' + eur(P.adv.bal) + '</small>'],
+    ['Valore dell\'azienda', eur(m.value), '<small>' + (P.own < 0.999 ? 'la tua quota: ' + pct(P.own, 1) : '6,5 × EBITDA + immobili + cassa − debiti') + '</small>'], ['Debiti con le banche', eur(m.debt), '<small>rating ' + m.rating + '/100</small>']].map(t => '<div class="tile"><span>' + t[0] + '</span><b>' + t[1] + '</b>' + t[2] + '</div>').join('');
+  const hh = h.slice(-36), labels = hh.map(x => E.monthName(x.t));
+  const c1 = chart([{ name: 'Cassa', v: hh.map(x => x.cash) }, { name: 'Valore della tua quota', v: hh.map(x => x.mine) }], labels, cw(), 210);
+  const c2 = chart([{ name: 'Gas e noleggi', v: hh.map(x => x.revGas + x.revRent) }, { name: 'Collaudi', v: hh.map(x => x.revTest) }, { name: 'Pacchi', v: hh.map(x => x.revPack) }], labels, cw(), 210);
+  const nextTier = TIERS.find(t => m.mine < t[0]);
+  const goal = nextTier ? '<div class="stack"><div class="row sp"><b>Prossimo traguardo: ' + nextTier[1] + '</b><span class="num">' + eur(m.mine) + ' / ' + eur(nextTier[0]) + '</span></div><div class="bar"><i style="width:' + Math.min(100, m.mine / nextTier[0] * 100) + '%"></i></div></div>' : '<p><b class="good">Hai superato tutti i traguardi: Colosso dei gas.</b></p>';
+  const left = Math.max(0, E.END_MONTHS - S.t);
+  let lastBox = '';
+  if (last) { const rows = [['Gas venduto', last.revGas], ['Noleggio bombole', last.revRent], ['Collaudi', last.revTest], ['Pacchi', last.revPack], ['EBITDA', last.ebitda], ['Ammortamenti', -last.dep], ['Interessi', -last.interest], ['Utile prima delle imposte', last.ebt]];
+    lastBox = '<div class="card"><h3>Ultimo mese: ' + E.monthName(last.t) + '</h3><div class="tw"><table><tbody>' + rows.map(r => '<tr class="' + (r[0] === 'EBITDA' ? 'tot' : '') + '"><td>' + r[0] + '</td><td class="r ' + (r[0] === 'EBITDA' || r[0].startsWith('Utile') ? sgn(r[1]) : '') + '">' + eur(r[1]) + '</td></tr>').join('') + '</tbody></table></div><p class="hint">Consegnate ' + num(last.del) + ' bombole di gas, collaudate ' + num(last.tests) + ', costruiti ' + last.packs + ' pacchi.</p></div>'; }
+  const al = '<div class="card"><h3>Da guardare</h3><ul class="alerts">' + advisories().map(a => '<li><i class="dot ' + a[0] + '"></i><span>' + esc(a[1]) + '</span></li>').join('') + '</ul></div>';
+  return '<section><div class="tiles">' + tiles + '</div><div class="card stack"><div class="row sp"><h3>Obiettivo a 10 anni</h3><span class="muted small">' + (left > 0 ? 'mancano ' + left + ' mesi' : 'tempo scaduto, puoi continuare') + '</span></div>' + goal + '</div><div class="grid two">' + al + lastBox + '</div><div class="grid two"><div class="card"><h3>Cassa e valore</h3>' + c1 + '</div><div class="card"><h3>Ricavi per attività</h3>' + c2 + '</div></div></section>';
+}
+const payTxt = m => !isFinite(m) || m <= 0 ? 'non rientra' : m < 24 ? Math.round(m) + ' mesi' : (m / 12).toFixed(1).replace('.', ',') + ' anni';
+function tabCap() {
+  const P = S.player, c = E.investCap(S), I = S.macro.infl, site = E.SITES[P.sede.size], nL = Object.keys(P.lines).filter(k => P.lines[k]).length;
+  const tiles = '<div class="tiles t4"><div class="tile"><span>Puoi investire circa</span><b class="' + (c.total > 0 ? 'good' : 'warn') + '">' + eur(c.total) + '</b><small>restando prudente</small></div><div class="tile"><span>Cassa libera</span><b>' + eur(c.free) + '</b><small>oltre la riserva di ' + eur(c.reserve) + '</small></div><div class="tile"><span>Dalle banche</span><b>' + eur(c.loan) + '</b><small>tenendo le rate sotto metà dell\'EBITDA</small></div><div class="tile"><span>Rate di oggi</span><b>' + eur(c.service) + '</b><small>l\'anno, su ' + eur(c.e12) + ' di EBITDA</small></div></div>';
+  const how = '<p class="muted small">La riserva è un mese e mezzo di spese: è il cuscinetto per stipendi, fornitori e imposte se i clienti pagano tardi. Quello che sta sopra puoi investirlo. Dalle banche conviene prendere solo quanto riesci a ripagare con calma.</p>';
+  const props = E.siteIds(S).map(id => { const q = E.propQuote(S, id), sede = id === 'sede'; let body;
+    if (q.own) body = '<div class="stats"><div><span>Valore oggi</span><b>' + eur(q.value) + '</b></div><div><span>Mutuo residuo</span><b>' + eur(q.debt) + '</b></div><div><span>Tasse e manutenzione</span><b>' + eur(q.upkeep) + '</b></div><div><span>Affitto che risparmi</span><b class="good">' + eur(q.rent) + '</b></div></div><div class="row">' + conf('sellp:' + id, 'Vendi e resta in affitto · +' + eur(q.sale - q.debt), 'sellprop', 'data-id="' + id + '"', 'Conferma la vendita', 'danger') + '</div>' + (sede && P.sede.pv ? '<p class="hint">Vendendo perdi anche il fotovoltaico.</p>' : '');
+    else body = '<div class="stats"><div><span>Affitto</span><b>' + eur(q.rent) + '</b></div><div><span>Prezzo con le spese</span><b>' + eur(q.cost) + '</b></div><div><span>Mutuo della banca</span><b>' + eur(q.mort) + '</b></div><div><span>Rata del mutuo</span><b>' + eur(q.payment) + '</b></div></div><p class="small">Con il mutuo metti <b>' + eur(q.down) + '</b> di tasca tua: la rata (' + eur(q.payment) + ') più tasse e manutenzione (' + eur(q.upkeep) + ') ' + (q.payment + q.upkeep <= q.rent ? 'costa meno dell\'affitto di oggi.' : 'costa ' + eur(q.payment + q.upkeep - q.rent) + ' in più dell\'affitto, ma dopo 15 anni il capannone è tuo.') + ' Tasso ' + pct(q.rate, 2) + '.</p><div class="row"><button class="primary" data-a="buyprop" data-id="' + id + '" data-m="1"' + (q.okMort ? '' : ' disabled') + '>Compra con il mutuo</button><button data-a="buyprop" data-id="' + id + '" data-m="0">Compra in contanti</button></div>' + (q.okMort ? '' : '<p class="hint warn">Per il mutuo serve un rating di almeno 30.</p>');
+    return '<div class="card stack"><div class="row sp"><h3>' + q.name + '</h3><span class="pill ' + (q.own ? 'good' : '') + '">' + (q.own ? 'Di proprietà' : 'In affitto') + '</span></div><p class="small muted">' + num(q.mq) + ' mq' + (sede ? ' · ' + site.name.toLowerCase() : ' · deposito con piazzale') + '</p>' + body + '</div>'; }).join('');
+  const sq = E.sedeQuote(S);
+  const space = '<div class="card stack"><div class="row sp"><h3>Spazio in sede</h3><span class="pill">' + site.name + '</span></div><div class="ctl"><span class="lbl">Operai in officina: ' + (P.wc + P.wp) + ' su ' + site.workers + '</span><div class="bar ' + (P.wc + P.wp >= site.workers ? 'bad' : '') + '"><i style="width:' + Math.min(100, (P.wc + P.wp) / site.workers * 100) + '%"></i></div></div><div class="ctl"><span class="lbl">Linee di riempimento: ' + nL + ' su ' + site.lines + '</span><div class="bar ' + (nL >= site.lines ? 'warn' : '') + '"><i style="width:' + Math.min(100, nL / site.lines * 100) + '%"></i></div></div>' +
+    (sq ? '<p class="small">' + (sq.kind === 'amplia' ? 'Il capannone è tuo: puoi <b>ampliarlo</b> a ' + num(sq.mq) + ' mq (posto per ' + sq.workers + ' operai e ' + sq.lines + ' linee). Il terreno è già tuo, paghi solo la costruzione.' : 'Sei in affitto: puoi <b>traslocare</b> in un ' + sq.name.toLowerCase() + ' da ' + num(sq.mq) + ' mq (posto per ' + sq.workers + ' operai e ' + sq.lines + ' linee). L\'affitto sale a ' + eur(sq.rent) + ' al mese e l\'officina rallenta per due mesi.') + '</p><div>' + conf('grow', (sq.kind === 'amplia' ? 'Amplia' : 'Trasloca') + ' · ' + eur(sq.cost), 'grow', '', 'Conferma · ' + eur(sq.cost)) + '</div>' : '<p class="small muted">Hai già il capannone più grande.</p>') + '</div>';
+  const pq = E.pvQuote(S);
+  const pv = '<div class="card stack"><div class="row sp"><h3>Fotovoltaico sul tetto</h3><span class="pill ' + (P.sede.pv ? 'good' : '') + '">' + (P.sede.pv ? P.sede.pv + ' kW installati' : 'Non installato') + '</span></div>' + (P.sede.pv ? '<p class="small">Oggi ti toglie circa <b>' + eur(E.pvSaving(S)) + '</b> al mese di bolletta.</p>' : '') +
+    (!P.sede.own ? '<p class="small muted">Il tetto non è tuo: si può fare solo su una sede di proprietà.</p>' : pq.kwp > 0 ? '<p class="small">' + pq.kwp + ' kW per ' + eur(pq.cost) + ': circa ' + eur(pq.save) + ' al mese in meno di bolletta, rientra in ' + payTxt(pq.cost / pq.save) + '. Rende di più quando l\'energia è cara (oggi è a ' + Math.round(S.macro.energy * 100) + ' su 100).</p><div><button class="primary" data-a="pv">Installa</button></div>' : '<p class="small muted">Il tetto è tutto coperto.</p>') + '</div>';
+  const act = o => { const k = o.key.split(':'); if (o.lock) return '<span class="small warn">' + esc(o.lock) + '</span>'; if (k[0] === 'line') return '<button data-a="line" data-g="' + k[1] + '">Investi</button>'; if (k[0] === 'upg') return '<button data-a="upg" data-k="' + k[1] + '">Investi</button>'; if (k[0] === 'pv') return '<button data-a="pv">Investi</button>'; return '<span class="small muted">Si compra dalla sezione Immobili, più sotto.</span>'; };
+  const rows = E.investOptions(S).map(o => '<div><div class="row sp"><b>' + esc(o.name) + '</b><span class="pill ' + (o.lock ? '' : o.pay <= 48 ? 'good' : isFinite(o.pay) && o.gain > 0 ? 'warn' : 'bad') + '">' + (o.gain > 0 ? 'rientra in ' + payTxt(o.pay) : 'non rientra') + '</span></div><span class="small">Costo <b>' + eur(o.cost) + '</b> · <b class="' + sgn(o.gain) + '">' + (o.gain >= 0 ? '+' : '') + eur(o.gain) + '</b> al mese</span>' + (o.note ? '<span class="small muted">' + esc(o.note) + '</span>' : '') + '<div>' + act(o) + '</div></div>').join('');
+  const rank = '<div class="card"><h3>Dove rendono di più i soldi</h3><div class="opts">' + rows + '</div><p class="hint">Stime sui volumi di oggi, dalla più rapida a rientrare alla più lenta. Non contano i clienti nuovi che un investimento può portare, né il lavoro che puoi perdere da Borea riempiendo in casa. Bombole, depositi, venditori e certificazioni non sono in elenco: servono per crescere, non per risparmiare.</p></div>';
+  return '<section>' + tiles + how + rank + '<h2>Immobili</h2><p class="muted small">Prezzi dei capannoni oggi: ' + Math.round((S.macro.prop || 1) * 100) + ' su 100 (100 = normale, scendono nelle recessioni). In affitto paghi ogni mese e resti leggero; comprando blocchi cassa ma l\'immobile entra nel valore dell\'azienda.</p><div class="grid two">' + space + props + pv + '</div></section>';
+}
+function tabLog() {
+  const P = S.player, pl = E.distPlan(S), I = S.macro.infl, pn = CN => CN * I * S.macro.steel, n = UI.buyN;
+  const gap = pl.outNeed - pl.fleetAvail;
+  const fleet = '<div class="card stack"><h3>Parco bombole</h3><div class="stats"><div><span>Tue</span><b>' + num(P.fleet.n) + '</b></div><div><span>Servono questo mese</span><b class="' + (gap > 0 ? 'bad' : '') + '">' + num(pl.outNeed) + '</b></div><div><span>In collaudo</span><b>' + num(P.q.own) + '</b></div><div><span>Perse finora</span><b>' + num(P.lost) + '</b></div></div>' +
+    '<p class="small">' + (gap > 0 ? '<b class="bad">Te ne mancano ' + num(gap) + '.</b> Senza bombole non consegni, anche se il cliente c\'è.' : 'Ne hai ' + num(-gap) + ' di scorta.') + ' Quelle dai clienti stanno fuori da uno a tre mesi prima di tornare vuote. Ogni dieci anni vanno ricollaudate; ogni mese qualcuna non torna.</p>' +
+    '<div class="ctl"><label for="buyn">Quante</label><div class="row"><select id="buyn" data-c="buyn">' + [50, 100, 200, 500, 1000, 2000].map(v => '<option value="' + v + '"' + (v === n ? ' selected' : '') + '>' + num(v) + '</option>').join('') + '</select><button class="primary" data-a="buycyl" data-u="0">Nuove · ' + eur(n * pn(E.CYL_NEW)) + '</button><button data-a="buycyl" data-u="1">Usate · ' + eur(n * pn(E.CYL_USED)) + '</button>' + conf('sellcyl', 'Vendi ' + num(n), 'sellcyl', '', 'Conferma · +' + eur(n * E.CYL_SCRAP * I), 'danger') + '</div><span class="hint">Le usate costano meno ma durano la metà, e tre su dieci vanno collaudate subito.</span></div></div>';
+  const deps = P.depots.map(d => { const dd = pl.deps.find(x => x.id === d.id), zs = E.ZONES.filter(z => E.nearestDepot(S, z.id).dep.id === d.id && (pl.zw[z.id] || 0) > 5).map(z => z.name);
+    return '<div class="card stack"><div class="row sp"><h3>' + E.ZMAP[d.zone].name + (d.home ? ' · sede' : '') + '</h3><span class="pill ' + (dd.load > d.trucks + 0.02 ? 'bad' : 'good') + '">' + dd.load.toFixed(1).replace('.', ',') + ' camion di lavoro</span></div><p class="small muted">Serve: ' + (zs.join(', ') || 'nessuna zona') + ' · ' + num(dd.vol) + ' bombole al mese</p><div class="ctl"><span class="lbl">Camion</span>' + step('trucks', 'data-id="' + d.id + '"', d.trucks + ' camion') + '</div></div>'; }).join('');
+  return '<section>' + fleet + '<div class="row sp"><h2>Depositi e camion</h2></div><p class="muted small">Un camion fa circa 1.300 bombole al mese vicino al deposito, meno di 900 a 80 km. I depositi nuovi si aprono dalla mappa, toccando una zona.</p><div class="grid two">' + deps + '</div>' +
+    '<div class="card">' + tgl('outsource', P.outsource, 'Usa trasportatori esterni quando i camion non bastano', 'Costano circa ' + eur2(7.5 * I) + ' a bombola, più la distanza. Senza, le consegne in più saltano e il servizio scende.') + '</div></section>';
+}
+function tabFin() {
+  const P = S.player, m = E.metrics(S);
+  const info = '<div class="tiles t4"><div class="tile"><span>Tasso di riferimento</span><b>' + pct(S.macro.rate, 2) + '</b><small>le banche aggiungono il loro margine</small></div><div class="tile"><span>Il tuo rating</span><b>' + m.rating + '/100</b><small>sale con utili e pochi debiti</small></div><div class="tile"><span>Scoperto massimo</span><b>' + eur(m.limit) + '</b><small>costa il 12% l\'anno</small></div><div class="tile"><span>La tua quota</span><b>' + pct(P.own, 1) + '</b><small>' + (P.own < 0.999 ? 'il resto è dei soci' : 'l\'azienda è tutta tua') + '</small></div></div>';
+  const lab = { off: 'Officine', ali: 'Alimentare', san: 'Sanità', lab: 'Laboratori', srv: 'Clienti dell\'officina' };
+  const ar = '<div class="card stack"><h3>Crediti e anticipo fatture</h3><p class="small">Vendi oggi, incassi tra due o cinque mesi. Più cresci, più soldi restano fermi dai clienti. Con l\'anticipo fatture la banca te ne dà subito una parte, a un tasso del <b>' + pct(S.macro.rate + 0.03 - (P.execs.cfo ? 0.006 : 0), 2) + '</b>.</p><div class="tw"><table><tbody>' + Object.keys(P.AR).map(k => '<tr><td>' + lab[k] + '</td><td class="r">' + eur(P.AR[k]) + '</td></tr>').join('') + '<tr class="tot"><td>Totale crediti</td><td class="r">' + eur(m.ar) + '</td></tr><tr><td>Debiti verso fornitori</td><td class="r">' + eur(P.AP) + '</td></tr></tbody></table></div>' +
+    tgl('adv', P.adv.on, 'Anticipo fatture attivo', 'Oggi la banca ti anticipa ' + eur(P.adv.bal) + '. Massimo concesso con il tuo rating: ' + eur(m.advLimit) + '.') +
+    '<div class="ctl"><label for="advp">Quota dei crediti da anticipare: <b id="advv">' + Math.round(P.adv.pct * 100) + '%</b></label><input id="advp" type="range" min="0.1" max="0.85" step="0.05" value="' + P.adv.pct + '" data-c="advpct"></div></div>';
+  const banks = E.BANKS.map(b => { const q = E.bankQuote(S, b.id), defAmt = Math.max(5000, Math.min(q.avail, 80000)), term = b.terms[1];
+    return '<div class="card stack"><h3>' + b.name + '</h3><p class="small muted">' + b.note + '</p><div class="small">Puoi chiedere fino a <b>' + eur(q.avail) + '</b><br>Tasso stimato <b>' + pct(q.rate, 2) + '</b> · probabilità di sì <b>' + (q.p ? Math.round(q.p * 100) + '%' : 'rating troppo basso (serve ' + q.minRating + ')') + '</b></div><div class="row"><div class="ctl"><label for="la-' + b.id + '">Importo (€)</label><input id="la-' + b.id + '" type="number" min="5000" step="5000" value="' + defAmt + '"></div><div class="ctl"><label for="lt-' + b.id + '">Durata</label><select id="lt-' + b.id + '">' + b.terms.map(t => '<option value="' + t + '"' + (t === term ? ' selected' : '') + '>' + (t >= 24 ? (t / 12) + ' anni' : t + ' mesi') + '</option>').join('') + '</select></div></div><div><button class="primary" data-a="loan" data-b="' + b.id + '"' + (q.used ? ' disabled' : '') + '>' + (q.used ? 'Già richiesto questo mese' : 'Chiedi il prestito') + '</button></div></div>'; }).join('');
+  const loans = P.loans.length ? '<div class="card"><h3>I tuoi prestiti</h3><div class="tw"><table><thead><tr><th>Banca</th><th class="r">Residuo</th><th class="r">Tasso</th><th class="r">Rata</th><th class="r">Mesi</th><th></th></tr></thead><tbody>' + P.loans.map(l => '<tr><td>' + E.BANK_MAP[l.bank].name + '</td><td class="r">' + eur(l.balance) + '</td><td class="r">' + pct(l.rate, 2) + '</td><td class="r">' + eur(l.payment) + '</td><td class="r">' + l.remaining + '</td><td class="r"><button class="ghost" data-a="prepay" data-id="' + l.id + '">Estingui (+1%)</button></td></tr>').join('') + '</tbody></table></div></div>' : '';
+  const o = E.equityOffer(S, UI.eq);
+  const soci = '<div class="card stack"><h3>Soci investitori</h3><p class="small">Un fondo compra azioni nuove: entra cassa senza rate, ma la tua quota scende per sempre e ogni dicembre i soci prendono in dividendi il 25% della loro parte di utile. Il punteggio finale è il valore della <b>tua</b> quota.</p><div class="ctl"><label for="eqp">Quota da vendere: <b id="eqv">' + Math.round(UI.eq * 100) + '%</b></label><input id="eqp" type="range" min="0.05" max="0.4" step="0.05" value="' + UI.eq + '" data-c="eq"></div>' +
+    (o.why ? '<p class="hint warn">' + esc(o.why) + '</p>' : '<p class="small">Il fondo valuta l\'azienda <b>' + eur(o.pre) + '</b> (sconto del 20%) e versa <b>' + eur(o.cash) + '</b>. La tua quota passa dal ' + pct(P.own, 1) + ' al <b>' + pct(o.ownAfter, 1) + '</b>.</p><div>' + conf('equity', 'Vendi le quote · +' + eur(o.cash), 'equity', '', 'Conferma: vendi il ' + Math.round(UI.eq * 100) + '%') + '</div>') + '</div>';
+  return '<section>' + info + '<div class="grid two">' + ar + soci + '</div><h2>Banche</h2><p class="hint">Ogni banca risponde a una sola richiesta al mese. L\'importo massimo dipende dall\'EBITDA degli ultimi 12 mesi e dal patrimonio.</p><div class="grid three">' + banks + '</div>' + loans + '</section>';
+}
+function tabBil() {
+  const P = S.player, m = E.metrics(S), F = S.fy;
+  const cur = Object.assign({ year: 'In corso', cashEnd: P.cash }, F); cur.rev = cur.revGas + cur.revRent + cur.revTest + cur.revPack; cur.net = cur.ebitda - cur.dep - cur.interest - cur.oneoff - cur.tax;
+  const cols = [cur].concat(S.years.slice(-4).reverse());
+  const row = (lab, f, cls) => '<tr class="' + (cls || '') + '"><td>' + lab + '</td>' + cols.map(y => '<td class="r">' + eur(f(y)) + '</td>').join('') + '</tr>';
+  const head = '<thead><tr><th></th>' + cols.map(y => '<th class="r">' + y.year + '</th>').join('') + '</tr></thead>';
+  const ce = '<div class="card"><h3>Conto economico</h3><div class="tw"><table class="fin">' + head + '<tbody>' + row('Gas venduto', y => y.revGas) + row('Noleggio bombole', y => y.revRent) + row('Collaudi per terzi', y => y.revTest) + row('Pacchi e revisioni', y => y.revPack) + row('Ricavi totali', y => y.rev, 'tot') +
+    row('Gas acquistato', y => -y.gas) + row('Materiali di officina', y => -y.mat) + row('Personale', y => -y.staff) + row('Camion, gasolio, trasportatori', y => -y.logi) + row('Affitti, certificazioni, costi fissi', y => -y.fixed) + row('Crediti persi', y => -y.bad) + row('Guasti, infortuni, disorganizzazione', y => -y.other) +
+    row('EBITDA', y => y.ebitda, 'tot') + row('Ammortamenti', y => -y.dep) + row('Interessi', y => -y.interest) + row('Costi straordinari', y => -y.oneoff) + row('Imposte', y => -y.tax) + row('Utile netto', y => y.net, 'tot') + '</tbody></table></div><p class="hint">L\'anno si chiude a dicembre, quando si pagano le imposte (27,9% sull\'utile, dopo le perdite degli anni prima).</p></div>';
+  const op = y => y.ebitda - y.dAR + y.dAP - y.interest - y.oneoff - y.tax;
+  const rf = '<div class="card"><h3>Rendiconto di cassa</h3><div class="tw"><table class="fin">' + head + '<tbody>' + row('EBITDA', y => y.ebitda) + row('Aumento dei crediti verso clienti', y => -y.dAR) + row('Aumento dei debiti verso fornitori', y => y.dAP) + row('Interessi, straordinari, imposte', y => -(y.interest + y.oneoff + y.tax)) + row('Cassa generata dalla gestione', op, 'tot') +
+    row('Investimenti (bombole, impianti, depositi)', y => -y.capex) + row('Vendite di beni', y => y.sales) + row('Anticipo fatture (variazione)', y => y.dAdv) + row('Nuovi prestiti', y => y.loansIn) + row('Rimborsi di capitale', y => -y.loansOut) + row('Soldi dai soci', y => y.equityIn) + row('Dividendi ai soci', y => -y.divOut) +
+    row('Variazione della cassa', y => op(y) - y.capex + y.sales + y.dAdv + y.loansIn - y.loansOut + y.equityIn - y.divOut, 'tot') + row('Cassa a fine periodo', y => y.cashEnd) + '</tbody></table></div><p class="hint">Qui si vede perché un\'azienda che guadagna può restare senza soldi: crescendo, i crediti verso i clienti salgono prima degli incassi.</p></div>';
+  const fix = m.book - P.fleet.book - m.props, assets = P.fleet.book + fix + m.props + m.ar + Math.max(0, P.cash), od = Math.max(0, -P.cash), liab = m.debt + P.adv.bal + P.AP + od;
+  const sp = '<div class="card"><h3>Stato patrimoniale di oggi</h3><div class="tw"><table class="fin"><tbody>' + [['Parco bombole', P.fleet.book], ['Impianti, attrezzature, avviamento', fix], ['Immobili (valore di mercato)', m.props], ['Crediti verso clienti', m.ar], ['Cassa', Math.max(0, P.cash)], ['Totale attivo', assets, 1], ['Prestiti bancari', m.debt], ['Anticipi su fatture', P.adv.bal], ['Debiti verso fornitori', P.AP], ['Scoperto di conto', od], ['Patrimonio netto', assets - liab, 1]].map(r => '<tr class="' + (r[2] ? 'tot' : '') + '"><td>' + r[0] + '</td><td class="r">' + eur(r[1]) + '</td></tr>').join('') + '</tbody></table></div></div>';
+  const rev12 = E.trail(S, 'rev'), nd = m.debt + P.adv.bal - P.cash;
+  const ix = [['Margine EBITDA (12 mesi)', rev12 > 0 ? pct(m.e12 / rev12, 1) : '—'], ['EBITDA degli ultimi 12 mesi', eur(m.e12)], ['Debiti netti / EBITDA', m.e12 > 0 ? (nd / m.e12).toFixed(1).replace('.', ',') + ' volte' : '—'], ['Giorni medi di incasso', rev12 > 0 ? Math.round(m.ar / (rev12 / 365)) + ' giorni' : '—'], ['Copertura delle rate (DSCR)', m.debt > 0 ? m.dscr.toFixed(1).replace('.', ',') + ' volte' : 'nessun prestito'], ['Valore dell\'azienda', eur(m.value)], ['Imposte pagate in totale', eur(P.taxPaid)]];
+  const idx = '<div class="card"><h3>Indici</h3><div class="tw"><table class="fin"><tbody>' + ix.map(r => '<tr><td>' + r[0] + '</td><td class="r">' + r[1] + '</td></tr>').join('') + '</tbody></table></div><p class="hint">Valore = 6,5 × EBITDA degli ultimi 12 mesi + immobili di proprietà + cassa − prestiti − anticipi. Se un immobile è tuo, dall\'EBITDA si toglie l\'affitto che non paghi: così non conta due volte.</p></div>';
+  return '<section>' + ce + rf + '<div class="grid two">' + sp + idx + '</div></section>';
+}
+function tabSqu() {
+  const P = S.player, mg = E.mgmt(S), I = S.macro.infl, nT = P.depots.reduce((a, d) => a + d.trucks, 0), nR = Object.keys(P.reps).reduce((a, z) => a + P.reps[z], 0);
+  const gauge = '<div class="card stack"><div class="row sp"><h3>Il tuo tempo</h3><span class="num">' + mg.load.toFixed(1).replace('.', ',') + ' / ' + mg.cap.toFixed(1).replace('.', ',') + '</span></div><div class="bar ' + (mg.over > 0 ? 'bad' : '') + '"><i style="width:' + Math.min(100, mg.load / Math.max(mg.cap, 0.1) * 100) + '%"></i></div><p class="small ' + (mg.over > 0 ? 'warn' : 'muted') + '">' + (mg.over > 0 ? 'Sei sovraccarico: l\'officina rende meno, il servizio peggiora, sprechi in aumento. Assumi chi ti toglie lavoro.' : 'Pesano sul tuo tempo depositi, venditori, operai, camion e linee di riempimento. Ogni dirigente aggiunge capacità.') + '</p></div>';
+  const cards = Object.keys(E.EXECS).map(k => { const x = E.EXECS[k], on = P.execs[k]; return '<div class="card stack"><div class="row sp"><h3>' + x.name + '</h3><span class="pill ' + (on ? 'good' : '') + '">' + (on ? 'In squadra' : 'Non assunto') + '</span></div><p class="small">' + x.desc + '</p><p class="small muted">Costo: ' + eur(x.salary * I) + ' al mese · capacità +' + String(x.cap).replace('.', ',') + '</p><div><button class="' + (on ? 'danger' : 'primary') + '" data-a="exec" data-k="' + k + '">' + (on ? 'Licenzia' : 'Assumi') + '</button></div></div>'; }).join('');
+  const hc = '<div class="card"><h3>Chi lavora per te</h3><div class="tw"><table><tbody>' + [['Operai al collaudo', P.wc], ['Operai ai pacchi', P.wp], ['Autisti', nT], ['Venditori', nR], ['Magazzinieri', P.depots.length]].map(r => '<tr><td>' + r[0] + '</td><td class="r">' + r[1] + '</td></tr>').join('') + '</tbody></table></div><p class="hint">Impiegati d\'ufficio e addetti al riempimento vengono assunti da soli quando il lavoro cresce.</p></div>';
+  return '<section>' + gauge + '<div class="grid two">' + cards + '</div>' + hc + '</section>';
+}
+
+/* ---------- altro ---------- */
+function tabMer() {
+  const M = S.macro;
+  const macro = '<div class="tiles t4"><div class="tile"><span>Energia</span><b class="' + (M.energy > 1.15 ? 'bad' : M.energy < 0.9 ? 'good' : '') + '">' + Math.round(M.energy * 100) + '</b><small>100 = normale</small></div><div class="tile"><span>Acciaio</span><b class="' + (M.steel > 1.12 ? 'bad' : '') + '">' + Math.round(M.steel * 100) + '</b><small>bombole e telai</small></div><div class="tile"><span>Lavoro delle officine</span><b class="' + (M.dem < 0.99 ? 'bad' : M.dem > 1.01 ? 'good' : '') + '">' + Math.round(M.dem * 100) + '</b><small>100 = normale</small></div><div class="tile"><span>Inflazione dall\'inizio</span><b>' + pct(M.infl - 1, 1) + '</b></div></div>';
+  const rows = E.GASES.map(g => { const x = S.gidx[g.id]; return '<tr><td><b>' + g.name + '</b><br><span class="small muted">' + g.note + '</span></td><td class="r">' + eur2(E.refPrice(S, g.id)) + '</td><td class="r ' + (x.v > 1.15 ? 'bad' : x.v < 0.9 ? 'good' : '') + '">' + Math.round(x.v * 100) + '</td><td>' + spark(x.hist.slice(-24)) + '</td>' + '<td class="r">' + (S.short[g.id] ? '<span class="pill bad">carenza</span>' : '') + '</td></tr>'; }).join('');
+  const comps = '<div class="grid three">' + E.COMPS.map(c => { const cut = E.ZONES.filter(z => S.comps[c.id].adj[z.id] < 0.97).map(z => z.name); return '<div class="card stack"><h3>' + c.name + '</h3><p class="small muted">' + c.tag + '</p><p class="small">Listino: ' + (c.p > 1.02 ? 'sopra la media' : c.p < 0.95 ? 'molto basso' : 'nella media') + '.<br>' + (cut.length ? '<span class="bad">Sta facendo sconti a: ' + cut.join(', ') + '.</span>' : 'Nessuna guerra di prezzi in corso.') + '</p></div>'; }).join('') + '</div>';
+  return '<section>' + macro + '<div class="card"><h3>Gas: prezzi e costi all\'origine</h3><div class="tw"><table><thead><tr><th>Gas</th><th class="r">Prezzo di mercato</th><th class="r">Costo (100 = normale)</th><th>Ultimi 24 mesi</th><th></th></tr></thead><tbody>' + rows + '</tbody></table></div><p class="hint">Quando il costo all\'origine sale, i tuoi acquisti rincarano subito e il prezzo di mercato solo in parte: il margine si stringe.</p></div><h2>Concorrenti</h2>' + comps + '</section>';
+}
+function tabNot() { const items = S.log.slice().reverse(); return '<section><div class="card"><h2>Notizie e storia</h2><ul class="log" style="margin-top:10px">' + (items.length ? items.map(e => '<li><time>' + E.monthName(e.t) + '</time><i class="dot ' + e.kind + '"></i><span>' + esc(e.txt) + '</span></li>').join('') : '<li class="muted">Ancora nulla.</li>') + '</ul></div></section>'; }
+function tabGui() {
+  const sec = (t, ps) => '<div class="card stack"><h3>' + t + '</h3>' + ps.map(p => '<p>' + p + '</p>').join('') + '</div>';
+  const ng = '<div class="card stack"><h3>Partita</h3><p class="small muted">Il gioco si salva da solo dopo ogni mossa.</p><div class="row">' + conf('newgame', 'Abbandona e inizia una nuova partita', 'newgame', '', 'Sì, ricomincia', 'danger') + '</div></div>';
+  return '<section class="guide">' +
+    sec('L\'obiettivo', ['Hai 10 anni per far crescere l\'azienda. Ogni turno è un mese: decidi, poi premi "Prossimo mese".', 'Il valore è 6,5 volte l\'EBITDA degli ultimi 12 mesi, più gli immobili di proprietà e la cassa, meno prestiti e anticipi. Se hai venduto quote, conta solo la tua parte. Traguardi: 2, 5, 10 e 20 milioni.', 'Perdi se resti in scoperto oltre il limite della banca per due mesi di fila.']) +
+    sec('Tre attività sotto lo stesso tetto', ['<b>Gas</b>: vendi bombole piene a officine, alimentare, sanità e laboratori in sette zone del Veneto. Il mercato è saturo: i clienti hanno già un fornitore e cambiano piano.', '<b>Collaudo</b>: ogni bombola va ricollaudata ogni dieci anni. Lo fai per le tue e per le altre aziende del gas. Margine basso, tanto lavoro: conta l\'organizzazione.', '<b>Pacchi</b>: costruisci e revisioni pacchi da 16 bombole. Pochi ordini, grossi, da pochi clienti.']) +
+    sec('Le bombole girano', ['Le bombole sono tue. Stanno dal cliente da uno a tre mesi, tornano vuote, le riempi e ripartono. Intanto il cliente paga il noleggio.', 'Se ne hai poche non consegni, anche se il cliente c\'è. Se ne hai troppe hai capitale fermo. Ogni mese qualcuna non torna.', 'Ogni nuovo cliente vuol dire comprare bombole prima di incassare: crescere costa.']) +
+    sec('Rivendere o riempire', ['All\'inizio compri le bombole già piene da Gruppo Borea e le rivendi. Con una linea di riempimento compri il gas liquido e riempi in casa: il margine sale molto.', 'Ma Borea è anche il tuo primo cliente in officina. Più gas riempi in casa, meno ne compri da lui: il rapporto si raffredda e ti arrivano meno collaudi e meno pacchi. Devi scegliere quanto puntare sul gas e quanto sull\'officina.']) +
+    sec('Vendere', ['Senza venditori i clienti nuovi non ti conoscono. Un deposito in zona ti rende "di casa" e accorcia le consegne.', 'Se il servizio scende sotto l\'85% i clienti se ne vanno. Il servizio dipende da bombole e camion.', 'Se porti via troppi clienti a un concorrente, in quella zona abbassa i prezzi.', 'Le gare assegnano grandi clienti per anni. Un\'offerta bassa vince quasi sempre, ma lascia poco.']) +
+    sec('Capannoni e investimenti', ['La sede è in affitto. Il capannone decide quanti operai e quante linee ci stanno: quando è pieno devi traslocare in uno più grande, o ampliarlo se è tuo.', 'Comprare il capannone costa caro e blocca la cassa, ma togli l\'affitto, l\'immobile entra nel valore dell\'azienda e le banche ti prestano di più. Con il mutuo la banca mette il 70% in 15 anni.', 'Se resti senza soldi puoi vendere l\'immobile e restarci dentro in affitto.', 'Sul tetto di un capannone tuo puoi mettere il fotovoltaico: rende di più quando l\'energia è cara.', 'In Azienda, Investire trovi quanto puoi spendere senza rischiare e l\'elenco degli investimenti ordinati per tempo di rientro.']) +
+    sec('La cassa', ['Le officine pagano a 75 giorni, la sanità a 150. Più vendi, più soldi restano fermi dai clienti. Puoi guadagnare e restare senza cassa.', 'L\'anticipo fatture ti dà subito una parte dei crediti, a un costo. I prestiti servono per bombole e impianti. I soci portano cassa senza rate, ma si prendono una parte dell\'azienda.', 'Nella sezione Bilancio il rendiconto di cassa mostra dove sono finiti i soldi.']) + ng + '</section>';
+}
+const TABS = { cap: tabCap, lis: tabLis, zon: tabZon, con: tabCon, col: tabCol, pac: tabPac, cli: tabCli, inv: tabInv, pan: tabPan, log: tabLog, fin: tabFin, bil: tabBil, squ: tabSqu, mer: tabMer, not: tabNot, gui: tabGui };
+
+/* ---------- finestre ---------- */
+function modalHTML() {
+  if (S.pending && !S.over) { const e = S.pending, cash = S.player.cash;
+    return '<div class="modal" role="dialog" aria-modal="true" aria-labelledby="mt"><div><h4>Decisione · ' + E.monthName(S.t) + '</h4><h2 id="mt">' + esc(e.title) + '</h2><p>' + esc(e.text) + '</p><p class="small muted">Cassa disponibile: ' + eur(cash) + '</p><div class="stack">' + e.options.map((o, i) => { const noCash = o.cost && cash < o.cost; return '<button class="opt" data-a="event" data-i="' + i + '"' + (noCash ? ' disabled' : '') + '><b>' + esc(o.label) + '</b><span class="small muted">' + esc(o.desc) + (noCash ? ' Non hai abbastanza cassa.' : '') + '</span></button>'; }).join('') + '</div></div></div>'; }
+  if (!UI.modal) return '';
+  const m = E.metrics(S);
+  if (UI.modal === 'over') return '<div class="modal" role="dialog" aria-modal="true" aria-labelledby="mt"><div><h2 id="mt">Fallimento</h2><p>Le banche hanno richiamato i crediti e l\'azienda è fallita. Era ' + esc(E.monthName(S.over ? S.over.t : S.t)) + '.</p><p class="muted small">Di solito va così: si cresce troppo in fretta, i soldi restano fermi nei crediti e nelle bombole, e una rata o le imposte di dicembre trovano la cassa vuota. Guarda il rendiconto nel Bilancio.</p><div class="row"><button class="primary" data-a="newgame">Nuova partita</button><button data-a="dismiss">Guarda i dati</button></div></div></div>';
+  const tier = TIERS.slice().reverse().find(t => m.mine >= t[0]);
+  return '<div class="modal" role="dialog" aria-modal="true" aria-labelledby="mt"><div><h2 id="mt">Sono passati 10 anni</h2><p>Valore della tua quota: <b class="num">' + eur(m.mine) + '</b>' + (S.player.own < 0.999 ? ' (il ' + pct(S.player.own, 1) + ' di ' + eur(m.value) + ')' : '') + '.</p><p>' + (tier ? 'Risultato: <b>' + tier[1] + '</b>.' : 'Non hai raggiunto il primo traguardo (2 milioni). Riprova con un altro piano.') + '</p><p class="small muted">Bombole: ' + num(S.player.fleet.n) + ' · collaudi fatti: ' + num(S.player.tested) + ' · pacchi costruiti: ' + num(S.player.packs) + ' · imposte pagate ' + eur(S.player.taxPaid) + '.</p><div class="row"><button class="primary" data-a="dismiss">Continua a giocare</button><button data-a="newgame">Nuova partita</button></div></div></div>';
+}
+
+/* ---------- eventi dell'interfaccia ---------- */
+let lastKey = '', lastSheet = '';
+function render() {
+  const app = $('#app'), sc = $('.scr'), sb = $('.sheetbody'), y1 = sc ? sc.scrollTop : 0, y2 = sb ? sb.scrollTop : 0;
+  if (S) syncTab();
+  app.innerHTML = S ? gameHTML() : '<div class="startwrap"><div class="startbg"><svg viewBox="140 260 760 620" preserveAspectRatio="xMidYMid slice" aria-hidden="true">' + regionMap() + '</svg></div>' + startHTML() + '</div>';
+  const key = S ? UI.scr + '/' + UI.tab : 'start', sk = S && UI.sheet ? JSON.stringify(UI.sheet) : '';
+  const sc2 = $('.scr'), sb2 = $('.sheetbody');
+  if (sc2 && key === lastKey) sc2.scrollTop = y1; if (sb2 && sk === lastSheet) sb2.scrollTop = y2;
+  lastKey = key; lastSheet = sk;
+  if (S && UI.scr === 'map') mapApply();
+}
+function advance(n) {
+  if (!S || S.over || S.pending) return; let last = null;
+  for (let i = 0; i < n; i++) { const r = E.nextMonth(S); if (!r || r.blocked) break; last = r; if (S.over || r.ended10 || S.pending || S.player.cash < 0) break; if (n > 1 && r.events.some(e => /ATTENZIONE|mancano bombole|camion insufficienti|intasata|Infortunio/i.test(e))) break; }
+  if (S.over) UI.modal = 'over'; else if (last && last.ended10) UI.modal = 'ten';
+  if (UI.sheet && UI.sheet.t === 'alerts') UI.sheet = null;
+  save(); render();
+  if (S.pending || UI.modal) { const tt = $('.toast'); if (tt) tt.remove(); }
+  if (last && last.rec && !S.pending) { const r = last.rec; toast(E.monthName(r.t) + ': ricavi ' + eur(r.rev) + ', EBITDA ' + eur(r.ebitda), r.ebitda >= 0); }
+}
+function newGame() { S = E.createGame({ difficulty: UI.diff, name: (UI.name || '').trim() || 'La tua azienda' }); Object.assign(UI, { scr: 'map', sheet: null, view: null, modal: null, confirm: null }); save(); render(); }
+const ACT = {
+  diff: el => { const nm = $('#nm'); if (nm) UI.name = nm.value; UI.diff = at(el, 'v'); render(); },
+  start: () => { const nm = $('#nm'); if (nm) UI.name = nm.value; newGame(); },
+  resume: () => { S = loadSaved(); UI.scr = 'map'; UI.sheet = null; if (S && S.over) UI.modal = 'over'; render(); },
+  scr: el => { UI.scr = at(el, 'v'); UI.confirm = null; UI.sheet = null; render(); },
+  sub: el => { UI.sub[UI.scr] = at(el, 'v'); UI.confirm = null; render(); },
+  next: el => advance(+at(el, 'n')),
+  zoom: el => { const r = mapSize(); zoomAt(at(el, 'v') === '1' ? 1.45 : 1 / 1.45, r.width / 2, r.height / 2); },
+  sheet: el => { UI.sheet = { t: at(el, 'v') }; render(); },
+  closesheet: () => { UI.sheet = null; UI.confirm = null; render(); },
+  zone: el => { UI.sheet = { t: 'zone', z: at(el, 'z') }; UI.confirm = null; render(); },
+  reps: el => { const z = at(el, 'z'); say(E.setReps(S, z, (S.player.reps[z] || 0) + +at(el, 'dl'))); },
+  trucks: el => { const d = S.player.depots.find(x => x.id === at(el, 'id')); if (d) say(E.setTrucks(S, d.id, d.trucks + +at(el, 'dl'))); },
+  opendep: el => { const r = E.openDepot(S, at(el, 'z')); if (r.ok) E.setTrucks(S, S.player.depots[S.player.depots.length - 1].id, 1); say(r); },
+  closedep: el => { UI.confirm = null; say(E.closeDepot(S, at(el, 'id'))); },
+  price: el => { const g = at(el, 'g'); say(E.setPrice(S, g, S.player.price[g] + 0.02 * +at(el, 'dl'))); },
+  fee: el => say(E.setFee(S, S.player.fee + 0.5 * +at(el, 'dl'))),
+  idx: el => { const k = at(el, 'k'); say(E.setIdx(S, k, S.player[k === 'pack' ? 'packIdx' : 'testIdx'] + 0.02 * +at(el, 'dl'))); },
+  workers: el => { const k = at(el, 'k'); say(E.setWorkers(S, k, S.player[k === 'pack' ? 'wp' : 'wc'] + +at(el, 'dl'))); },
+  flag: el => { const k = at(el, 'k'); if (k === 'adv') say(E.setAdv(S, !S.player.adv.on)); else say(E.setFlag(S, k, !S.player[k])); },
+  buycyl: el => say(E.buyCyl(S, UI.buyN, at(el, 'u') === '1')),
+  sellcyl: () => { UI.confirm = null; say(E.sellCyl(S, UI.buyN)); },
+  upg: el => say(E.buyUpgrade(S, at(el, 'k'))),
+  line: el => say(E.buildLine(S, at(el, 'g'))),
+  cert: el => say(E.buyCert(S, at(el, 'k'))),
+  dropcert: el => { UI.confirm = null; say(E.dropCert(S, at(el, 'k'))); },
+  exec: el => say(E.setExec(S, at(el, 'k'), !S.player.execs[at(el, 'k')])),
+  loan: el => { const b = at(el, 'b'); say(E.requestLoan(S, b, $('#la-' + b).value, $('#lt-' + b).value)); },
+  prepay: el => say(E.prepayLoan(S, at(el, 'id'))),
+  equity: () => { UI.confirm = null; say(E.sellEquity(S, UI.eq)); },
+  buyprop: el => say(E.buyProperty(S, at(el, 'id'), at(el, 'm') === '1')),
+  sellprop: el => { UI.confirm = null; say(E.sellProperty(S, at(el, 'id'))); },
+  grow: () => { UI.confirm = null; say(E.growSede(S)); },
+  pv: () => say(E.buyPV(S)),
+  ask: el => { UI.confirm = at(el, 'k'); render(); },
+  noconf: () => { UI.confirm = null; render(); },
+  event: el => say(E.resolveEvent(S, +at(el, 'i'))),
+  dismiss: () => { UI.modal = null; render(); },
+  newgame: () => { S = null; UI.modal = null; UI.confirm = null; UI.sheet = null; try { localStorage.removeItem(KEY); } catch (e) { /* ignora */ } render(); }
+};
+const CHG = {
+  nm: el => { UI.name = el.value; }, buyn: el => { UI.buyN = +el.value; UI.confirm = null; render(); },
+  advpct: el => { E.setAdv(S, S.player.adv.on, +el.value); save(); render(); },
+  eq: el => { UI.eq = +el.value; UI.confirm = null; render(); }
+};
+document.addEventListener('click', ev => { const el = ev.target.closest && ev.target.closest('[data-a]'); if (!el || el.disabled) return; if (el.closest('#map') && Date.now() - PZ.dragT < 300) return; const f = ACT[at(el, 'a')]; if (f) f(el); });
+document.addEventListener('change', ev => { const el = ev.target.closest && ev.target.closest('[data-c]'); if (!el) return; const f = CHG[at(el, 'c')]; if (f) f(el); });
+document.addEventListener('input', ev => { const el = ev.target; if (!el || !el.getAttribute) return; const c = el.getAttribute('data-c'); if (c === 'eq') { const v = $('#eqv'); if (v) v.textContent = Math.round(+el.value * 100) + '%'; } if (c === 'advpct') { const v = $('#advv'); if (v) v.textContent = Math.round(+el.value * 100) + '%'; } });
+let rz = null; window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { if (S && UI.tab === 'pan') render(); else if (S && UI.scr === 'map') mapApply(); }, 200); });
+function start(data) { let s = null; try { if (data && data.save) { const x = JSON.parse(data.save); if (x && x.game === 'gas' && x.player) s = E.migrate(x); } } catch (e) { /* ignora */ } S = s || loadSaved(); if (S && S.over) UI.modal = 'over'; render(); }
+try { const hot = window.claude && window.claude.hot; if (hot && hot.snapshot) hot.snapshot(function () { return { save: S ? JSON.stringify(S) : null }; }); } catch (e) { /* ignora */ }
+if (window.claude && window.claude.hot && window.claude.hot.ready) window.claude.hot.ready(start); else start((window.claude && window.claude.hot && window.claude.hot.data) || {});
+})();
+
+</script>
+<script>
+if ('serviceWorker' in navigator) window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
+</script>
+</body>
+</html>
