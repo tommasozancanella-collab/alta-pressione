@@ -6,7 +6,7 @@
 <title>Alta Pressione</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <meta name="apple-mobile-web-app-title" content="Pressione">
 <meta name="theme-color" content="#16283A">
 <link rel="manifest" href="manifest.webmanifest">
@@ -14,7 +14,7 @@
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@500;600;700;800&display=swap">
 <style>
-html { box-sizing: border-box; background: #16283A; padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px); -webkit-text-size-adjust: 100%; }
+html { background: #16283A; -webkit-text-size-adjust: 100%; }
 body { margin: 0; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 img { max-width: 100%; } [hidden] { display: none !important; }
 /* Impianto: app a schermo intero. In alto la barra con cassa e data, al centro la mappa o una schermata che scorre, in basso la navigazione. Le schede salgono dal basso. Tema unico, scelto apposta: cornice blu notte, mappa di giorno, accento giallo crema. */
@@ -243,6 +243,9 @@ button.lnk { background: none; border: 0; box-shadow: none; padding: 0; min-heig
 .opts > div { border-top: 1px solid var(--line); padding: 12px 0; display: grid; gap: 5px; } .opts > div:first-child { border-top: 0; }
 .opts .row.sp { align-items: flex-start; gap: 8px; } .opts .row.sp b { min-width: 0; }
 
+/* Bordi dello schermo del telefono: la tacca in alto e la barretta in basso. Lo spazio lo prende il gioco, non la pagina. */
+#app { border-top: env(safe-area-inset-top, 0px) solid #16283A; }
+.nav { padding-bottom: max(6px, calc(env(safe-area-inset-bottom, 0px) - 12px)); }
 </style>
 </head>
 <body>
@@ -1534,6 +1537,13 @@ if (window.claude && window.claude.hot && window.claude.hot.ready) window.claude
 
 </script>
 <script>
+/* Su alcuni iPhone, in modalità app, la pagina risulta più corta dello schermo e resta una fascia vuota in basso: qui la si allunga a tutto schermo. */
+(function () {
+  var sa = window.navigator.standalone || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches); if (!sa) return;
+  var probe = document.createElement('div'); probe.style.cssText = 'position:fixed;top:0;left:0;width:0;height:env(safe-area-inset-top,0px);visibility:hidden;pointer-events:none'; document.documentElement.appendChild(probe);
+  function fit() { var top = probe.offsetHeight, ih = window.innerHeight, sh = window.screen.height, portrait = ih >= window.innerWidth, gap = sh - ih; document.documentElement.style.height = top > 0 && portrait && gap > 8 && gap < 90 ? sh + 'px' : ''; }
+  fit(); window.addEventListener('resize', fit); window.addEventListener('orientationchange', function () { setTimeout(fit, 350); }); setTimeout(fit, 500);
+})();
 if ('serviceWorker' in navigator) window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
 </script>
 </body>
