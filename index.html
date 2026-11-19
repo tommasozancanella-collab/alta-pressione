@@ -242,6 +242,10 @@ button.lnk { background: none; border: 0; box-shadow: none; padding: 0; min-heig
 .opts > div { border-top: 1px solid var(--line); padding: 12px 0; display: grid; gap: 5px; } .opts > div:first-child { border-top: 0; }
 .opts .row.sp { align-items: flex-start; gap: 8px; } .opts .row.sp b { min-width: 0; }
 
+.alerts li span { display: grid; gap: 6px; justify-items: start; }
+.alerts .fix { min-height: 38px; padding: 6px 12px; font-size: .88rem; background: var(--accent); color: var(--accent-ink); border-color: var(--accent-d); box-shadow: 0 2px 0 var(--accent-d); text-align: left; }
+ol.intro { margin: 0; padding-left: 22px; display: grid; gap: 8px; }
+
 /* Bordi dello schermo del telefono: la tacca in alto e la barretta in basso. Lo spazio lo prende il gioco, non la pagina. */
 /* Da iOS 26 il telefono sfoca la pagina sotto la barra di stato. Quando il gioco finisce lì sotto, si lascia un po' di spazio in più
    e si mette una fascia piena dietro l'orologio, così la sfocatura non tocca le scritte. */
@@ -256,7 +260,7 @@ body::before { content: ""; position: fixed; top: 0; left: 0; right: 0; height: 
 /* Bordi dello schermo del telefono. Tre cose: allunga la pagina se il telefono la tiene più corta dello schermo; sposta il gioco in basso
    se finisce sotto l'orologio senza che il telefono lo dichiari; lascia al giocatore una regolazione a mano (Altro, Guida, Schermo). */
 (function () {
-  var VERSION = 'v5', KEY = 'alta-pressione-schermo', nav = window.navigator;
+  var VERSION = 'v6', KEY = 'alta-pressione-schermo', nav = window.navigator;
   var sa = !!(nav.standalone || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches));
   var ios = /iPhone|iPad|iPod/.test(nav.userAgent) || (nav.platform === 'MacIntel' && nav.maxTouchPoints > 1);
   function mk(side) { var d = document.createElement('div'); d.style.cssText = 'position:fixed;top:0;left:0;width:0;height:env(safe-area-inset-' + side + ',0px);visibility:hidden;pointer-events:none'; document.documentElement.appendChild(d); return d; }
@@ -1176,24 +1180,35 @@ function gameHTML() {
   return hud + '<div class="stage">' + body + sheetHTML() + '</div>' + nav + modalHTML();
 }
 
+/* Gli avvisi dicono la causa e portano un tasto per sistemare. Ogni voce: [colore, testo, azione]. */
+const go2 = (label, scr, tab) => ({ l: label, scr: scr, tab: tab });
 function advisories() {
-  const P = S.player, m = E.metrics(S), o = E.outlook(S), pl = o.plan, out = [];
-  if (P.cash < 0) out.push(['bad', 'Sei in scoperto di ' + eur(-P.cash) + '. Il limite della banca è ' + eur(m.limit) + '. Rientra subito: anticipo fatture, prestito o meno spese.']);
-  else if (P.cash < 30000) out.push(['warn', 'Cassa bassa (' + eur(P.cash) + '). I clienti ti devono ' + eur(m.ar) + ': valuta l\'anticipo fatture.']);
-  if (pl.fFleet < 0.98) out.push(['bad', 'Ti mancano circa ' + num(pl.outNeed - pl.fleetAvail) + ' bombole: questo mese consegni solo il ' + Math.round(pl.fFleet * 100) + '% delle richieste.']);
-  else if (pl.fleetAvail > pl.outNeed * 1.4 && pl.fleetAvail - pl.outNeed > 400) out.push(['warn', 'Hai circa ' + num(pl.fleetAvail - pl.outNeed) + ' bombole ferme in deposito: capitale che non lavora.']);
-  pl.deps.forEach(d => { if (d.load > d.trucks + 0.02) out.push([P.outsource ? 'warn' : 'bad', 'Deposito di ' + E.ZMAP[d.zone].name + ': servono ' + d.load.toFixed(1).replace('.', ',') + ' camion, ne hai ' + d.trucks + '.' + (P.outsource ? ' Il resto va con trasportatori esterni, più cari.' : ' Una parte delle consegne salta.')]); else if (d.trucks - d.load > 1) out.push(['warn', 'Deposito di ' + E.ZMAP[d.zone].name + ': hai ' + d.trucks + ' camion ma ne basterebbero ' + Math.ceil(d.load) + '.']); });
-  const tc = o.test; if (tc.queue > tc.cap * 1.3 && tc.queue > 60) out.push(['warn', 'Collaudo intasato: ' + num(tc.queue) + ' bombole in coda, ne fai ' + num(tc.cap) + ' al mese. I clienti aspettano e si spostano.']);
-  else if (P.wc > 1 && o.testDemand < tc.cap * 0.65) out.push(['warn', 'Collaudo: hai operai per ' + num(tc.cap) + ' bombole al mese ma ne arrivano circa ' + num(o.testDemand) + '.']);
-  if (o.packDemand > o.packCap * 1.3) out.push(['warn', 'Pacchi: arrivano ordini per circa ' + o.packDemand.toFixed(1).replace('.', ',') + ' al mese, ne costruisci ' + o.packCap.toFixed(1).replace('.', ',') + '.']);
-  if (P.wc + P.wp >= E.SITES[P.sede.size].workers && (tc.queue > tc.cap * 1.1 || o.packDemand > o.packCap * 1.1)) out.push(['warn', 'Il capannone è pieno: ci stanno ' + E.SITES[P.sede.size].workers + ' operai e il lavoro cresce. Guarda Azienda, Investire.']);
-  if (o.mg.over > 0) out.push(['warn', 'Troppe cose da seguire da solo (' + o.mg.load.toFixed(1).replace('.', ',') + ' su ' + o.mg.cap.toFixed(1).replace('.', ',') + '): l\'officina rende meno e il servizio peggiora. Vai su Squadra.']);
-  E.ZONES.forEach(z => { if (P.sl[z.id] < 0.88 && pl.zw[z.id] > 20) out.push(['bad', z.name + ': servizio al ' + Math.round(P.sl[z.id] * 100) + '%. Sotto l\'85% i clienti se ne vanno.']); });
-  if (S.accts.bor.rel < 0.7) out.push(['warn', 'Il rapporto con Gruppo Borea si è raffreddato: ti manda meno bombole e meno ordini.']);
-  E.GASES.forEach(g => { if (S.gidx[g.id].v > 1.35) out.push(['warn', g.name + ': il costo è salito del ' + Math.round((S.gidx[g.id].v - 1) * 100) + '% sul normale. Controlla il margine nel listino.']); });
+  const P = S.player, m = E.metrics(S), o = E.outlook(S), pl = o.plan, out = [], I = S.macro.infl;
+  const advMax = Math.min(m.advLimit, m.ar * 0.6), fixCash = !P.adv.on && advMax > 5000 ? { l: 'Attiva l\'anticipo fatture · circa +' + eur(advMax), act: 'advon' } : go2('Vai a Finanza', 'az', 'fin');
+  if (P.cash < 0) out.push(['bad', 'Sei in scoperto di ' + eur(-P.cash) + '. Il limite della banca è ' + eur(m.limit) + ': se lo superi per due mesi fallisci. I clienti ti devono ' + eur(m.ar) + '.', fixCash]);
+  else if (P.cash < 30000) out.push(['warn', 'Cassa bassa (' + eur(P.cash) + '). I clienti ti devono ' + eur(m.ar) + ': la banca può anticipartene una parte.', fixCash]);
+  const gap = pl.outNeed - pl.fleetAvail, late = E.ZONES.filter(z => P.sl[z.id] < 0.9 && (pl.zw[z.id] || 0) > 20), shortT = pl.deps.filter(d => d.load > d.trucks + 0.02);
+  if (pl.fFleet < 0.98) { const n = Math.ceil(gap * 1.05 / 10) * 10, c = Math.round(n * E.CYL_USED * I * S.macro.steel);
+    out.push(['bad', 'Ti mancano circa ' + num(gap) + ' bombole: ne hai ' + num(P.fleet.n) + ', i clienti ne tengono impegnate ' + num(pl.outNeed) + '. Questo mese consegni solo il ' + Math.round(pl.fFleet * 100) + '% di quello che chiedono.', P.cash >= c ? { l: 'Compra ' + num(n) + ' bombole usate · ' + eur(c), act: 'buyfix', n: n } : { l: 'Servono circa ' + eur(c) + ': vai a Logistica', scr: 'az', tab: 'log' }]); }
+  else if (pl.fleetAvail > pl.outNeed * 1.4 && pl.fleetAvail - pl.outNeed > 400) out.push(['warn', 'Hai circa ' + num(pl.fleetAvail - pl.outNeed) + ' bombole ferme in deposito: capitale che non lavora.', go2('Vai a Logistica', 'az', 'log')]);
+  shortT.forEach(d => out.push([P.outsource ? 'warn' : 'bad', 'Deposito di ' + E.ZMAP[d.zone].name + ': servono ' + d.load.toFixed(1).replace('.', ',') + ' camion, ne hai ' + d.trucks + '.' + (P.outsource ? ' Il resto va con trasportatori esterni, più cari.' : ' Una parte delle consegne salta.'), { l: 'Aggiungi un camion · ' + eur((E.TRUCK_COST + E.SAL.driver) * I) + ' al mese', act: 'truckfix', id: d.id }]));
+  if (late.length) { const worst = Math.min.apply(null, late.map(z => P.sl[z.id])), why = pl.fFleet < 0.98 ? 'perché ti mancano le bombole (vedi sopra)' : shortT.length && !P.outsource ? 'perché ti mancano i camion (vedi sopra)' : 'ma ora stai consegnando tutto: risale da solo nei prossimi mesi';
+    out.push([worst < 0.88 && why.indexOf('risale') < 0 ? 'bad' : 'warn', 'Servizio al ' + Math.round(worst * 100) + '% a ' + late.map(z => z.name.split('-')[0]).join(', ') + ', ' + why + '. Il servizio è la parte di bombole richieste che riesci a consegnare: sotto l\'85% i clienti se ne vanno.']); }
+  const tc = o.test; if (tc.queue > tc.cap * 1.3 && tc.queue > 60) out.push(['warn', 'Collaudo intasato: ' + num(tc.queue) + ' bombole in coda, ne fai ' + num(tc.cap) + ' al mese. I clienti aspettano e ti mandano meno lavoro.', go2('Vai al Collaudo', 'off', 'col')]);
+  else if (P.wc > 1 && o.testDemand < tc.cap * 0.65) out.push(['warn', 'Collaudo: hai operai per ' + num(tc.cap) + ' bombole al mese ma ne arrivano circa ' + num(o.testDemand) + '. Paghi persone ferme.', go2('Vai al Collaudo', 'off', 'col')]);
+  if (o.packDemand > o.packCap * 1.3) out.push(['warn', 'Pacchi: arrivano ordini per circa ' + o.packDemand.toFixed(1).replace('.', ',') + ' al mese, ne costruisci ' + o.packCap.toFixed(1).replace('.', ',') + '.', go2('Vai ai Pacchi', 'off', 'pac')]);
+  if (P.wc + P.wp >= E.SITES[P.sede.size].workers && (tc.queue > tc.cap * 1.1 || o.packDemand > o.packCap * 1.1)) out.push(['warn', 'Il capannone è pieno: ci stanno ' + E.SITES[P.sede.size].workers + ' operai e il lavoro cresce.', go2('Vai a Investire', 'az', 'cap')]);
+  if (o.mg.over > 0) out.push(['warn', 'Segui troppe cose da solo (' + o.mg.load.toFixed(1).replace('.', ',') + ' su ' + o.mg.cap.toFixed(1).replace('.', ',') + '): l\'officina rende meno e il servizio peggiora. Serve un dirigente.', go2('Vai alla Squadra', 'az', 'squ')]);
+  if (S.accts.bor.rel < 0.7) out.push(['warn', 'Il rapporto con Gruppo Borea si è raffreddato: ti manda meno bombole e meno ordini.', go2('Vai ai Clienti', 'off', 'cli')]);
+  E.GASES.forEach(g => { if (S.gidx[g.id].v > 1.35) out.push(['warn', g.name + ': ti costa il ' + Math.round((S.gidx[g.id].v - 1) * 100) + '% più del normale. Controlla che il margine sia ancora positivo.', go2('Vai al Listino', 'ven', 'lis')]); });
   if (S.macro.rec > 0) out.push(['bad', 'Recessione industriale: meno gas alle officine e più clienti che non pagano, per circa ' + S.macro.rec + ' mesi.']);
   if (!out.length) out.push(['good', 'Nessun allarme. Continua così.']);
   return out.slice(0, 9);
+}
+function alertsHTML() {
+  return '<ul class="alerts">' + advisories().map(a => { const x = a[2]; let b = '';
+    if (x) b = '<button class="fix" data-a="' + (x.act || 'goto') + '"' + (x.scr ? ' data-s="' + x.scr + '" data-t="' + x.tab + '"' : '') + (x.n ? ' data-n="' + x.n + '"' : '') + (x.id ? ' data-id="' + x.id + '"' : '') + '>' + esc(x.l) + '</button>';
+    return '<li><i class="dot ' + a[0] + '"></i><span>' + esc(a[1]) + b + '</span></li>'; }).join('') + '</ul>';
 }
 
 /* ---------- mappa del Veneto ---------- */
@@ -1277,6 +1292,16 @@ document.addEventListener('pointerup', pzUp); document.addEventListener('pointer
 document.addEventListener('wheel', ev => { if (!ev.target.closest || !ev.target.closest('#map')) return; ev.preventDefault(); const r = mapSize(); zoomAt(ev.deltaY < 0 ? 1.15 : 1 / 1.15, ev.clientX - r.left, ev.clientY - r.top); }, { passive: false });
 
 /* ---------- schede dal basso ---------- */
+function svcWhy(zid, pl) {
+  const P = S.player, w = pl.zw[zid] || 0, d = pl.zd[zid] || 0, nd = E.nearestDepot(S, zid), dep = pl.deps.find(x => x.id === nd.dep.id);
+  if (w < 5) return 'Qui non hai ancora clienti: il servizio conta quando inizi a consegnare.';
+  const r = Math.round(d / w * 100); let why;
+  if (r >= 98) why = 'Questo mese consegni tutto' + (P.sl[zid] < 0.95 ? ': il servizio risale da solo, un po\' ogni mese.' : '.');
+  else if (pl.fFleet < 0.98 && dep && dep.f < 0.98) why = 'Questo mese consegni solo il ' + r + '%: ti mancano bombole e anche camion al deposito di ' + E.ZMAP[dep.zone].name + '.';
+  else if (pl.fFleet < 0.98) why = 'Questo mese consegni solo il ' + r + '%: ti mancano bombole (Azienda, Logistica).';
+  else why = 'Questo mese consegni solo il ' + r + '%: mancano camion al deposito di ' + E.ZMAP[nd.dep.zone].name + '.';
+  return '<b>Servizio</b> = bombole consegnate su bombole richieste. ' + why;
+}
 function zoneSheet(zid) {
   const P = S.player, z = E.ZMAP[zid], nd = E.nearestDepot(S, zid), dep = P.depots.find(d => d.zone === zid), I = S.macro.infl, pl = E.distPlan(S);
   const rows = E.SEGS.map(s => { const mk = E.market(S, zid, s.id), sh = P.share[zid][s.id], tg = E.shareIn(S, zid, s.id, 12), lock = s.cert && !P.certs[s.cert];
@@ -1287,13 +1312,14 @@ function zoneSheet(zid) {
   if (dep) { const dd = pl.deps.find(x => x.id === dep.id); depBox = '<div class="ctl"><span class="lbl">Camion del deposito · ne servono ' + dd.load.toFixed(1).replace('.', ',') + '</span>' + step('trucks', 'data-id="' + dep.id + '"', dep.trucks + (dep.trucks === 1 ? ' camion' : ' camion')) + '<span class="hint">Ogni camion con autista costa ' + eur((E.TRUCK_COST + E.SAL.driver) * I) + ' al mese.' + (dep.home ? ' Questa è la sede.' : '') + '</span>' + (dep.home ? '' : '<div>' + conf('cdep:' + dep.id, 'Chiudi il deposito', 'closedep', 'data-id="' + dep.id + '"', 'Sì, chiudi', 'danger') + '</div>') + '</div>'; }
   else depBox = '<div class="ctl"><span class="lbl">Deposito</span><span class="small">Oggi questa zona è servita da ' + E.ZMAP[nd.dep.zone].name + ', a ' + Math.round(nd.d) + ' km. Un deposito qui ti rende "di casa": più clienti e consegne più corte.</span><button data-a="opendep" data-z="' + zid + '">Apri un deposito · ' + eur(E.DEPOT_CAPEX * I) + '</button><span class="hint">Poi ' + eur((E.DEPOT_RENT + E.SAL.depot) * I) + ' al mese tra affitto e magazziniere.</span></div>';
   return '<div class="stats"><div><span>Servizio</span><b class="' + (P.sl[zid] < 0.88 ? 'bad' : P.sl[zid] < 0.95 ? 'warn' : 'good') + '">' + pct(P.sl[zid]) + '</b></div><div><span>Bombole richieste</span><b>' + num(pl.zw[zid] || 0) + '</b></div><div><span>Deposito più vicino</span><b>' + Math.round(nd.d) + ' km</b></div><div><span>Venditori</span><b>' + n + '</b></div></div>' +
+    '<p class="small">' + svcWhy(zid, pl) + '</p>' +
     '<div class="tw"><table><thead><tr><th>Clienti</th><th class="r">Mercato</th><th class="r">Tua quota</th><th class="r">Tra un anno</th></tr></thead><tbody>' + rows + '</tbody></table></div><p class="hint">Mercato in bombole al mese. "Tra un anno" è la quota che avrai con i prezzi, i venditori e il servizio di oggi. I clienti che hai restano se l\'offerta regge; quelli nuovi arrivano solo con i venditori.</p>' +
-    '<div class="controls"><div class="ctl"><span class="lbl">Venditori in zona</span>' + step('reps', 'data-z="' + zid + '"', n + (n === 1 ? ' venditore' : ' venditori')) + '<span class="hint">Ognuno costa ' + eur(repCost) + ' al mese più l\'1,5% delle vendite. Senza venditori i clienti nuovi non ti conoscono.</span></div>' + depBox + '</div>' +
+    '<div class="controls"><div class="ctl"><span class="lbl">Venditori in zona</span>' + step('reps', 'data-z="' + zid + '"', n + (n === 1 ? ' venditore' : ' venditori')) + '<span class="hint">Ognuno costa ' + eur(repCost) + ' al mese più l\'1,5% delle vendite. Senza venditori i clienti nuovi non ti conoscono. Ogni cliente nuovo tiene delle bombole: più venditori, più bombole e camion da comprare.</span></div>' + depBox + '</div>' +
     '<details><summary>Concorrenti in zona</summary><div class="tw" style="margin-top:8px"><table><tbody>' + comps + '</tbody></table></div><p class="hint">Se porti via troppi clienti, abbassano i prezzi.</p></details>';
 }
 function sheetHTML() {
   const sh0 = UI.sheet; if (!sh0) return ''; let title = '', sub = '', body = '';
-  if (sh0.t === 'alerts') { title = 'Avvisi'; sub = E.monthName(S.t); body = '<ul class="alerts">' + advisories().map(a => '<li><i class="dot ' + a[0] + '"></i><span>' + esc(a[1]) + '</span></li>').join('') + '</ul>'; }
+  if (sh0.t === 'alerts') { title = 'Avvisi'; sub = E.monthName(S.t); body = alertsHTML(); }
   else if (sh0.t === 'zone') { const z = E.ZMAP[sh0.z]; if (!z) { UI.sheet = null; return ''; } title = z.name; sub = 'La tua quota: ' + pct(zoneShare(z), 1) + ' del mercato'; body = zoneSheet(z.id); }
   return '<div class="backdrop" data-a="closesheet"></div><aside class="sheet" role="dialog" aria-label="' + esc(title) + '"><div class="sheethead"><div><h3>' + esc(title) + '</h3><span class="small muted">' + esc(sub) + '</span></div><button data-a="closesheet" aria-label="Chiudi">×</button></div><div class="sheetbody">' + body + '</div></aside>';
 }
@@ -1377,7 +1403,7 @@ function tabPan() {
   let lastBox = '';
   if (last) { const rows = [['Gas venduto', last.revGas], ['Noleggio bombole', last.revRent], ['Collaudi', last.revTest], ['Pacchi', last.revPack], ['EBITDA', last.ebitda], ['Ammortamenti', -last.dep], ['Interessi', -last.interest], ['Utile prima delle imposte', last.ebt]];
     lastBox = '<div class="card"><h3>Ultimo mese: ' + E.monthName(last.t) + '</h3><div class="tw"><table><tbody>' + rows.map(r => '<tr class="' + (r[0] === 'EBITDA' ? 'tot' : '') + '"><td>' + r[0] + '</td><td class="r ' + (r[0] === 'EBITDA' || r[0].startsWith('Utile') ? sgn(r[1]) : '') + '">' + eur(r[1]) + '</td></tr>').join('') + '</tbody></table></div><p class="hint">Consegnate ' + num(last.del) + ' bombole di gas, collaudate ' + num(last.tests) + ', costruiti ' + last.packs + ' pacchi.</p></div>'; }
-  const al = '<div class="card"><h3>Da guardare</h3><ul class="alerts">' + advisories().map(a => '<li><i class="dot ' + a[0] + '"></i><span>' + esc(a[1]) + '</span></li>').join('') + '</ul></div>';
+  const al = '<div class="card"><h3>Cosa fare adesso</h3>' + alertsHTML() + '</div>';
   return '<section><div class="tiles">' + tiles + '</div><div class="card stack"><div class="row sp"><h3>Obiettivo a 10 anni</h3><span class="muted small">' + (left > 0 ? 'mancano ' + left + ' mesi' : 'tempo scaduto, puoi continuare') + '</span></div>' + goal + '</div><div class="grid two">' + al + lastBox + '</div><div class="grid two"><div class="card"><h3>Cassa e valore</h3>' + c1 + '</div><div class="card"><h3>Ricavi per attività</h3>' + c2 + '</div></div></section>';
 }
 const payTxt = m => !isFinite(m) || m <= 0 ? 'non rientra' : m < 24 ? Math.round(m) + ' mesi' : (m / 12).toFixed(1).replace('.', ',') + ' anni';
@@ -1483,6 +1509,13 @@ function modalHTML() {
   if (S.pending && !S.over) { const e = S.pending, cash = S.player.cash;
     return '<div class="modal" role="dialog" aria-modal="true" aria-labelledby="mt"><div><h4>Decisione · ' + E.monthName(S.t) + '</h4><h2 id="mt">' + esc(e.title) + '</h2><p>' + esc(e.text) + '</p><p class="small muted">Cassa disponibile: ' + eur(cash) + '</p><div class="stack">' + e.options.map((o, i) => { const noCash = o.cost && cash < o.cost; return '<button class="opt" data-a="event" data-i="' + i + '"' + (noCash ? ' disabled' : '') + '><b>' + esc(o.label) + '</b><span class="small muted">' + esc(o.desc) + (noCash ? ' Non hai abbastanza cassa.' : '') + '</span></button>'; }).join('') + '</div></div></div>'; }
   if (!UI.modal) return '';
+  if (UI.modal === 'intro') return '<div class="modal" role="dialog" aria-modal="true" aria-labelledby="mt"><div><h4>Come si gioca</h4><h2 id="mt">Cinque cose da sapere</h2><ol class="intro">' +
+    '<li><b>Ogni turno è un mese.</b> Fai le tue scelte, poi premi "Prossimo mese".</li>' +
+    '<li><b>Guadagni in tre modi:</b> vendi gas in bombola, collaudi bombole per altre aziende, costruisci pacchi.</li>' +
+    '<li><b>Più clienti vuol dire più bombole e più camion.</b> Se mancano, non consegni: il servizio scende e i clienti se ne vanno.</li>' +
+    '<li><b>I clienti pagano dopo mesi.</b> Crescendo la cassa scende, anche se guadagni. Anticipo fatture e prestiti servono a questo.</li>' +
+    '<li><b>Guarda gli Avvisi.</b> Dicono cosa non va, perché, e hanno un tasto per sistemare.</li></ol>' +
+    '<p class="small muted">Consiglio: cresci un passo alla volta. Un venditore, poi le bombole che servono, poi il resto. La trovi anche in Altro, Guida.</p><div class="row"><button class="primary" data-a="intro">Ho capito, inizia</button></div></div></div>';
   const m = E.metrics(S);
   if (UI.modal === 'over') return '<div class="modal" role="dialog" aria-modal="true" aria-labelledby="mt"><div><h2 id="mt">Fallimento</h2><p>Le banche hanno richiamato i crediti e l\'azienda è fallita. Era ' + esc(E.monthName(S.over ? S.over.t : S.t)) + '.</p><p class="muted small">Di solito va così: si cresce troppo in fretta, i soldi restano fermi nei crediti e nelle bombole, e una rata o le imposte di dicembre trovano la cassa vuota. Guarda il rendiconto nel Bilancio.</p><div class="row"><button class="primary" data-a="newgame">Nuova partita</button><button data-a="dismiss">Guarda i dati</button></div></div></div>';
   const tier = TIERS.slice().reverse().find(t => m.mine >= t[0]);
@@ -1510,7 +1543,7 @@ function advance(n) {
   if (S.pending || UI.modal) { const tt = $('.toast'); if (tt) tt.remove(); }
   if (last && last.rec && !S.pending) { const r = last.rec; toast(E.monthName(r.t) + ': ricavi ' + eur(r.rev) + ', EBITDA ' + eur(r.ebitda), r.ebitda >= 0); }
 }
-function newGame() { S = E.createGame({ difficulty: UI.diff, name: (UI.name || '').trim() || 'La tua azienda' }); Object.assign(UI, { scr: 'map', sheet: null, view: null, modal: null, confirm: null }); save(); render(); }
+function newGame() { S = E.createGame({ difficulty: UI.diff, name: (UI.name || '').trim() || 'La tua azienda' }); Object.assign(UI, { scr: 'map', sheet: null, view: null, modal: 'intro', confirm: null }); save(); render(); }
 const ACT = {
   diff: el => { const nm = $('#nm'); if (nm) UI.name = nm.value; UI.diff = at(el, 'v'); render(); },
   start: () => { const nm = $('#nm'); if (nm) UI.name = nm.value; newGame(); },
@@ -1545,6 +1578,11 @@ const ACT = {
   sellprop: el => { UI.confirm = null; say(E.sellProperty(S, at(el, 'id'))); },
   grow: () => { UI.confirm = null; say(E.growSede(S)); },
   pv: () => say(E.buyPV(S)),
+  goto: el => { UI.scr = at(el, 's'); UI.sub[UI.scr] = at(el, 't'); UI.sheet = null; UI.confirm = null; render(); },
+  advon: () => { E.setAdv(S, true); toast('Anticipo fatture attivo: i soldi arrivano dal prossimo mese.'); save(); render(); },
+  buyfix: el => say(E.buyCyl(S, +at(el, 'n'), true)),
+  truckfix: el => { const d = S.player.depots.find(x => x.id === at(el, 'id')); if (d) say(E.setTrucks(S, d.id, d.trucks + 1)); },
+  intro: () => { UI.modal = null; render(); },
   scrn: el => { if (window.APscreen) window.APscreen.nudge(8 * +at(el, 'dl')); render(); },
   ask: el => { UI.confirm = at(el, 'k'); render(); },
   noconf: () => { UI.confirm = null; render(); },
