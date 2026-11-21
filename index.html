@@ -282,7 +282,7 @@ body::before { content: ""; position: fixed; top: 0; left: 0; right: 0; height: 
 /* Bordi dello schermo del telefono. Tre cose: allunga la pagina se il telefono la tiene più corta dello schermo; sposta il gioco in basso
    se finisce sotto l'orologio senza che il telefono lo dichiari; lascia al giocatore una regolazione a mano (Altro, Guida, Schermo). */
 (function () {
-  var VERSION = 'v8', KEY = 'alta-pressione-schermo', nav = window.navigator;
+  var VERSION = 'v9', KEY = 'alta-pressione-schermo', nav = window.navigator;
   var sa = !!(nav.standalone || (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches));
   var ios = /iPhone|iPad|iPod/.test(nav.userAgent) || (nav.platform === 'MacIntel' && nav.maxTouchPoints > 1);
   function mk(side) { var d = document.createElement('div'); d.style.cssText = 'position:fixed;top:0;left:0;width:0;height:env(safe-area-inset-' + side + ',0px);visibility:hidden;pointer-events:none'; document.documentElement.appendChild(d); return d; }
@@ -812,6 +812,30 @@ function bulkSource(S, zone, g) {
   let best = { c: liqBuy(S, g) + haul(S, 100), own: false };
   if (ASU_MIX[g]) for (const a of asuOnline(S)) { const d = a.zone === zone ? (ZMAP[zone].r || 15) : dist(a.zone, zone); if (d <= 450) { const c = asuUnit(S) + haul(S, d); if (c < best.c) best = { c, own: true, d }; } }
   return best;
+}
+/* Tonnellate di liquido che usi oggi in un mese, gas per gas: per riempire le bombole e per i clienti in cisterna. */
+function liquidUse(S) {
+  const pl = distPlan(S), out = {}, add = (g, k, t) => { (out[g] = out[g] || { fill: 0, bulk: 0 })[k] += t; };
+  for (const zone in pl.fillBy) for (const g in pl.fillBy[zone]) if (KG[g]) add(g, 'fill', pl.fillBy[zone][g] * KG[g] / 1000);
+  S.player.bulk.forEach(b => add(b.g, 'bulk', b.t)); return out;
+}
+/* Stima, sui volumi di oggi, di un impianto di produzione di una certa taglia messo in uno stabilimento: quanto ne useresti tu, quanto andrebbe all'ingrosso, quanto rende al mese. Stessi conti del mese vero. */
+function asuPlan(S, pid, size) {
+  const pt = plants(S).find(p => p.id === pid), z = ASU_SIZES[size]; if (!pt || !z) return null;
+  const pl = distPlan(S), C = cm(S), unit = asuUnit(S), items = [];
+  S.player.bulk.forEach(b => { if (ASU_MIX[b.g]) items.push({ g: b.g, t: b.t, zone: b.zone }); });
+  for (const zone in pl.fillBy) for (const g in pl.fillBy[zone]) if (ASU_MIX[g]) items.push({ g, t: pl.fillBy[zone][g] * KG[g] / 1000, zone, fill: true });
+  const cap = { o2: z.tpm * ASU_MIX.o2, n2: z.tpm * ASU_MIX.n2, ar: z.tpm * ASU_MIX.ar }, dOf = it => it.zone === pt.zone ? 0 : dist(pt.zone, it.zone);
+  let fillT = 0, bulkT = 0, own = 0, gain = 0;
+  items.filter(it => dOf(it) <= 450).sort((a, b) => dOf(a) - dOf(b)).forEach(it => {
+    if (it.fill) fillT += it.t; else bulkT += it.t;
+    const d = dOf(it), q = Math.min(it.t, cap[it.g]); if (q <= 0) return;
+    const cOwn = unit + (it.fill ? 0.06 * d * C : haul(S, d || ZMAP[it.zone].r || 15)), cBuy = liqBuy(S, it.g) + (it.fill ? 0 : haul(S, 100)); if (cOwn >= cBuy) return;
+    cap[it.g] -= q; own += q; gain += q * (cBuy - cOwn);
+  });
+  let room = z.tpm * 0.5, whole = 0; for (const g in cap) { const price = 0.68 * liqBuy(S, g); if (price > unit && cap[g] > 0 && room > 0) { const q = Math.min(cap[g], room); room -= q; whole += q; gain += q * (price - unit); } }
+  const fixed = z.cost * 0.0035 * C, cost = Math.round(z.cost * infl(S));
+  return { fillT, bulkT, need: fillT + bulkT, own, whole, load: (own + whole) / z.tpm, fixed, gain: gain - fixed, cost };
 }
 function asuQuote(S, size) { const z = ASU_SIZES[size]; return z ? { name: z.name, tpm: z.tpm, cost: Math.round(z.cost * infl(S)), fixed: z.cost * 0.0035 * cm(S), unit: asuUnit(S) } : null; }
 function buildASU(S, pid, size) {
@@ -1471,7 +1495,7 @@ const API = {
   MESI, START_YEAR, END_MONTHS, TAX, EV_MULT, SAL, GASES, GMAP, SEGS, SMAP, ZONES, ZMAP, COMPS, ACCTS, AMAP, UPG, CERTS, EXECS, BANKS, BANK_MAP, DIFFS,
   CYL_NEW, CYL_USED, CYL_SCRAP, TRUCK_COST, DEPOT_RENT, DEPOT_CAPEX, SITES, RENT_MQ, PRICE_MQ, DEPOT_MQ, SITE_RUN, TEST_REF, TEST_OUT, PACK_REF, REV_REF,
   HORIZON, AREAS, STAGES, ASU_SIZES, ASU_MIX, KG, COMP_BUY, PLANT_ROOM, stageOf, zOpen, zcm, cstr, repMax, depotCost, stageInfo, plants, allLines, workerRoom, plantQuote, buildPlant, supplyCost,
-  setMgrs, setEng, setDir, setMandate, reserveOf, liqBuy, bulkRef, asuUnit, bulkSource, asuOnline, asuQuote, buildASU, dealQuote, bidDeal, compQuote, buyComp, compShare, cm, fillCost,
+  setMgrs, setEng, setDir, setMandate, reserveOf, liqBuy, bulkRef, asuUnit, bulkSource, asuOnline, asuQuote, buildASU, dealQuote, bidDeal, compQuote, buyComp, compShare, cm, fillCost, liquidUse, asuPlan,
   createGame, nextMonth, metrics, mgmt, bankQuote, outlook, distPlan, testCap, packCap, market, targetShare, shareParts, shareIn, refPrice, unitCost, nearestDepot, truckCap, dist, monthName, trail, lineCost, acctGrow, pIndex,
   setPrice, setFee, setIdx, setFlag, setReps, openDepot, closeDepot, setTrucks, buyCyl, sellCyl, buildLine, buyUpgrade, buyCert, dropCert, setWorkers, setExec, setAdv, requestLoan, prepayLoan, migrate, siteIds, siteRent, siteValue, propQuote, buyProperty, sellProperty, sedeQuote, growSede, pvQuote, buyPV, pvSaving, investCap, investOptions, sitesCost, equityOffer, sellEquity, resolveEvent
 };
@@ -1994,7 +2018,11 @@ function tabPro() {
   const plantCards = pls.map(pt => { const a = P.asu.find(x => x.pid === pt.id), lines = Object.keys(pt.lines).filter(k => pt.lines[k]); let asu, add = '';
     if (a) { const z = E.ASU_SIZES[a.size]; asu = S.t < a.t0 ? '<p class="small"><b>Impianto di produzione in costruzione</b> (' + z.name.toLowerCase() + ', ' + num(z.tpm) + ' t al mese): parte tra ' + (a.t0 - S.t) + ' mesi.</p>' : '<div class="ctl"><span class="lbl">Impianto di produzione ' + z.name.toLowerCase() + ': lavora al ' + Math.round((a.load || 0) * 100) + '% (' + num(z.tpm) + ' t al mese)</span><div class="bar ' + ((a.load || 0) < 0.5 ? 'warn' : '') + '"><i style="width:' + Math.round((a.load || 0) * 100) + '%"></i></div></div>'; }
     else if (st < 3) asu = '<p class="small muted">La produzione del gas si sblocca nella fase 3.</p>';
-    else asu = '<details><summary>Costruisci qui un impianto di produzione</summary><p class="small" style="margin-top:8px">Ricava ossigeno, azoto e argon dall\'aria. Parte dopo 18 mesi.</p><div class="bids">' + E.ASU_SIZES.map((z, i) => { const q = E.asuQuote(S, i); return bidBtn('asu', 'data-id="' + pt.id + '" data-l="' + i + '"', 'asu:' + pt.id + ':' + i, z.name + ' · ' + eur(q.cost), num(z.tpm) + ' tonnellate al mese', 'costi fissi ' + eur(q.fixed) + ' al mese'); }).join('') + '</div></details>';
+    else { const p0 = E.asuPlan(S, pt.id, 0), yrs = (q, c) => q.gain > 0 ? c / q.gain / 12 : Infinity;
+      asu = '<details><summary>Produzione del gas: costruisci qui un impianto</summary><p class="small" style="margin-top:8px">Non è il riempimento. È la fabbrica che <b>fa</b> il gas liquido dall\'aria (ossigeno, azoto, argon), invece di comprarlo. Parte dopo 18 mesi.</p>' +
+        '<p class="small">Entro 450 km da qui oggi usi circa <b>' + num(p0.need) + ' tonnellate al mese</b>: ' + num(p0.fillT) + ' per riempire le bombole, ' + num(p0.bulkT) + ' per i clienti in cisterna.</p><div class="bids">' +
+        E.ASU_SIZES.map((z, i) => { const q = E.asuPlan(S, pt.id, i), y = yrs(q, q.cost); return bidBtn('asu', 'data-id="' + pt.id + '" data-l="' + i + '"', 'asu:' + pt.id + ':' + i, z.name + ' · ' + eur(q.cost), 'fa ' + num(z.tpm) + ' t al mese · lavorerebbe al ' + Math.round(q.load * 100) + '%', q.gain > 0 ? 'stima +' + eur(q.gain) + ' al mese · ' + (y > 40 ? 'non si ripaga' : 'si ripaga in ' + Math.round(y) + ' anni') : 'stima ' + eur(q.gain) + ' al mese: in perdita'); }).join('') +
+        '</div><p class="hint">Stima sui volumi di oggi' + (P.asu.length ? ', senza contare gli altri tuoi impianti' : '') + '. Di quello che produce usi prima il tuo; del resto, fino a metà impianto, si vende all\'ingrosso con poco margine. Conviene quando il tuo consumo riempie buona parte dell\'impianto.</p></details>'; }
     if (!pt.home && lines.length < 4) { const can = E.GASES.filter(g => g.line && !pt.lines[g.id]);
       add = '<details' + (lines.length ? '' : ' open') + '><summary>Aggiungi una linea di riempimento</summary><div class="bids" style="margin-top:8px">' + can.map(g => bidBtn('line', 'data-g="' + g.id + '" data-id="' + pt.id + '"', 'ln:' + pt.id + ':' + g.id, g.name + ' · ' + eur(E.lineCost(S, g.id)), 'una bombola qui: da ' + eur2(E.supplyCost(S, g.id, pt.zone).c) + ' a ' + eur2(E.fillCost(S, g.id)), 'serve anche le zone vicine')).join('') + '</div></details>'; }
     return '<div class="card stack"><div class="row sp"><h3>' + (pt.home ? 'Sede di Bassano' : 'Stabilimento di ' + E.ZMAP[pt.zone].name) + '</h3><span class="pill ' + (lines.length ? 'good' : '') + '">' + lines.length + (lines.length === 1 ? ' linea' : ' linee') + '</span></div><p class="small muted">Riempie: ' + (lines.length ? lines.map(gname).join(', ') : 'ancora niente') + '.' + (pt.home ? ' Le linee della sede si costruiscono in Officina, Impianti.' : '') + '</p>' + add + asu + '</div>'; }).join('');
@@ -2002,11 +2030,14 @@ function tabPro() {
   const cand = P.depots.filter(d => !d.home && !d.plant).sort((a, b) => volOf(b) * E.dist('bas', b.zone) - volOf(a) * E.dist('bas', a.zone)).map(d => { const q = E.plantQuote(S, d.id); return '<div><b>Deposito di ' + E.ZMAP[d.zone].name + '</b><span class="small muted">' + num(volOf(d)) + ' bombole al mese · a ' + Math.round(E.dist('bas', d.zone)) + ' km da Bassano · affitto poi ' + eur(q.rent) + ' al mese</span><div>' + conf('pl:' + d.id, 'Trasforma in stabilimento · ' + eur(q.cost), 'plant', 'data-id="' + d.id + '"', 'Conferma · ' + eur(q.cost)) + '</div></div>'; }).join('');
   const newP = '<div class="card"><h3>Apri un nuovo stabilimento</h3>' + (cand ? '<div class="opts">' + cand + '</div>' : '<p class="muted">Ti serve prima un deposito fuori sede: si apre dalla mappa, toccando una zona.</p>') + '<p class="hint">In cima quelli dove conviene di più: tante bombole, lontano da Bassano. Conviene perché oltre i 100 km portare le bombole piene costa, e nelle zone lontane oggi le compri già piene da un fornitore del posto.</p></div>';
   const unit = E.asuUnit(S), econ = st >= 3 ? '<div class="card"><h3>Produrre o comprare</h3><div class="tw"><table><thead><tr><th>Gas liquido</th><th class="r">Comprato</th><th class="r">Prodotto da te</th><th class="r">Venduto in cisterna</th></tr></thead><tbody>' + ['o2', 'n2', 'ar'].map(g => '<tr><td>' + gname(g) + '</td><td class="r">' + eur(E.liqBuy(S, g)) + '</td><td class="r good">' + eur(unit) + '</td><td class="r">' + eur(E.bulkRef(S, g)) + '</td></tr>').join('') + '</tbody></table></div><p class="hint">Euro a tonnellata. Produrre costa quasi solo corrente elettrica: conviene molto se l\'impianto lavora pieno, ma i costi fissi li paghi anche quando è mezzo vuoto. Rifornisce i tuoi clienti e le tue linee entro 450 km; metà di quello che avanza lo vendi all\'ingrosso con poco margine.</p></div>' : '';
+  const use = E.liquidUse(S), gs = Object.keys(use).filter(g => use[g].fill + use[g].bulk > 0.05), totU = gs.reduce((a, g) => a + use[g].fill + use[g].bulk, 0), d0 = n => n < 10 ? dec1(n) : num(n);
+  const useCard = '<div class="card"><h3>Quanto liquido usi</h3>' + (gs.length ? '<div class="tw"><table><thead><tr><th>Al mese, in tonnellate</th><th class="r">Per le bombole</th><th class="r">In cisterna</th></tr></thead><tbody>' + gs.map(g => '<tr><td>' + gname(g) + '</td><td class="r">' + d0(use[g].fill) + '</td><td class="r">' + d0(use[g].bulk) + '</td></tr>').join('') + '<tr class="tot"><td>Totale</td><td class="r" colspan="2">' + d0(totU) + ' tonnellate</td></tr></tbody></table></div>' : '<p class="muted">Per ora niente: non hai linee di riempimento né clienti in cisterna.</p>') +
+    '<p class="hint">Una linea di riempimento non ha taglie: riempie tutte le bombole di quel gas che partono da lì. Il liquido arriva in autocisterna e una bombola ne tiene poco: 14 kg di ossigeno, 12 di azoto, 18 di argon, 37 di CO₂. Diecimila bombole sono circa 150 tonnellate.</p></div>';
   const tons = P.bulk.reduce((a, b) => a + b.t, 0);
   const rows = P.bulk.map(b => '<tr><td>' + esc(b.name) + '<br><span class="small muted">' + E.ZMAP[b.zone].name + ' · ' + gname(b.g) + '</span></td><td class="r">' + num(b.t) + '</td><td class="r">' + eur(E.bulkRef(S, b.g) * b.k * (E.ZMAP[b.zone].pm || 1)) + '</td><td class="r">' + b.months + '</td></tr>').join('');
   const bulk = '<div class="card"><h3>Clienti del liquido in cisterna</h3>' + (rows ? '<div class="tw"><table><thead><tr><th>Cliente</th><th class="r">t al mese</th><th class="r">€ a t</th><th class="r">Mesi</th></tr></thead><tbody>' + rows + '</tbody></table></div>' : '<p class="muted">Ancora nessuno. Le richieste arrivano in Vendite, Trattative.</p>') + '<p class="hint">In tutto ' + num(tons) + ' tonnellate al mese' + (last ? ', ' + eur(last.revBulk || 0) + ' di ricavi il mese scorso' : '') + '. Alla scadenza sette su dieci rinnovano.</p></div>';
   const sites = P.onsite.length ? '<div class="card"><h3>Impianti dentro gli stabilimenti dei clienti</h3><div class="tw"><table><thead><tr><th>Cliente</th><th class="r">Canone al mese</th><th class="r">Mesi rimasti</th></tr></thead><tbody>' + P.onsite.map(o => '<tr><td>' + esc(o.name) + '</td><td class="r">' + eur(o.fee * I) + '</td><td class="r">' + o.months + '</td></tr>').join('') + '</tbody></table></div></div>' : '';
-  return '<section><h2>Stabilimenti</h2><p class="muted small">Uno stabilimento è un deposito trasformato in sede operativa: riempie le bombole sul posto invece di farle arrivare da lontano, e dà posto ad altri ' + E.PLANT_ROOM + ' operai di officina.</p><div class="grid two">' + plantCards + newP + '</div>' + econ + '<h2>Liquido</h2>' + bulk + sites + '</section>';
+  return '<section><h2>Stabilimenti</h2><p class="muted small">Uno stabilimento è un deposito trasformato in sede operativa: riempie le bombole sul posto invece di farle arrivare da lontano, e dà posto ad altri ' + E.PLANT_ROOM + ' operai di officina.</p><div class="grid two">' + plantCards + newP + '</div>' + '<h2>Liquido</h2>' + useCard + econ + bulk + sites + '</section>';
 }
 function tabIng() {
   const P = S.player, C = E.cm(S); if (E.stageOf(S) < 2) return lockCard('L\'ufficio tecnico per progettare impianti arriva nella fase 2.');
